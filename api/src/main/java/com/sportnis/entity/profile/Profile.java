@@ -1,7 +1,7 @@
 package com.sportnis.entity.profile;
 
 import com.sportnis.entity.common.BaseEntity;
-import com.sportnis.entity.enums.MarketSide;
+import com.sportnis.entity.enums.OnboardingStep;
 import com.sportnis.entity.enums.ProfileType;
 import com.sportnis.entity.user.User;
 import jakarta.persistence.CollectionTable;
@@ -12,7 +12,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.util.HashSet;
 import java.util.Set;
@@ -27,13 +27,9 @@ import lombok.Setter;
 @Table(name = "profiles")
 public class Profile extends BaseEntity {
 
-    @OneToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "market_side", nullable = false, length = 32)
-    private MarketSide marketSide;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "profile_type", nullable = false, length = 32)
@@ -64,6 +60,10 @@ public class Profile extends BaseEntity {
 
     @Column(name = "is_phone_public", nullable = false)
     private boolean isPhonePublic = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "onboarding_step", nullable = false, length = 32)
+    private OnboardingStep onboardingStep = OnboardingStep.REGISTERED;
 }
 
 
