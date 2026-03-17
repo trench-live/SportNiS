@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.sportnis.api.profile.dto.ProfileResponse;
+import com.sportnis.api.profile.dto.ProfileSearchingUpdateRequest;
 import com.sportnis.api.profile.dto.ProfileUpdateRequest;
 import com.sportnis.entity.enums.OnboardingStep;
 import com.sportnis.entity.enums.ProfileType;
@@ -129,6 +130,7 @@ class ProfileServiceTest {
         assertTrue(response.isPublic());
         assertEquals(false, response.isEmailPublic());
         assertEquals(false, response.isPhonePublic());
+        assertEquals(false, response.isLookingFor());
         assertEquals(OnboardingStep.REGISTERED, profile.getOnboardingStep());
 
         assertNull(details.getBirthYear());
@@ -192,5 +194,73 @@ class ProfileServiceTest {
 
         assertEquals(2, result.size());
         assertTrue(result.stream().allMatch(ProfileResponse::isPublic));
+    }
+
+    @Test
+    void updateMySearchingEnablesFlagForConsumerProfile() {
+        UUID userId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+
+        User user = new User();
+        ReflectionTestUtils.setField(user, "id", userId);
+        user.setActiveProfileId(profileId);
+
+        Profile profile = new Profile();
+        ReflectionTestUtils.setField(profile, "id", profileId);
+        profile.setUser(user);
+        profile.setProfileType(ProfileType.CONSUMER);
+        profile.setDisplayName("Consumer");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(profileRepository.findByIdAndUser_Id(profileId, userId)).thenReturn(Optional.of(profile));
+        when(profileRepository.save(any(Profile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProfileResponse response = profileService.updateMySearching(userId, new ProfileSearchingUpdateRequest(true));
+
+        assertTrue(response.isLookingFor());
+        assertTrue(profile.isLookingFor());
+    }
+
+    @Test
+    void updateMySearchingRejectsProviderProfile() {
+        UUID userId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+
+        User user = new User();
+        ReflectionTestUtils.setField(user, "id", userId);
+        user.setActiveProfileId(profileId);
+
+        Profile profile = new Profile();
+        ReflectionTestUtils.setField(profile, "id", profileId);
+        profile.setUser(user);
+        profile.setProfileType(ProfileType.PROVIDER);
+        profile.setDisplayName("Provider");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(profileRepository.findByIdAndUser_Id(profileId, userId)).thenReturn(Optional.of(profile));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                profileService.updateMySearching(userId, new ProfileSearchingUpdateRequest(true)));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    }
+
+    @Test
+    void listPublicSearchingProfilesReturnsOnlyConsumerProfilesInSearch() {
+        Profile profile = new Profile();
+        ReflectionTestUtils.setField(profile, "id", UUID.randomUUID());
+        profile.setUser(new User());
+        profile.setProfileType(ProfileType.CONSUMER);
+        profile.setDisplayName("Searching Consumer");
+        profile.setPublic(true);
+        profile.setLookingFor(true);
+
+        when(profileRepository.findAllByIsPublicTrueAndProfileTypeAndIsLookingForTrueOrderByCreatedAtDesc(ProfileType.CONSUMER))
+                .thenReturn(java.util.List.of(profile));
+
+        java.util.List<ProfileResponse> result = profileService.listPublicSearchingProfiles();
+
+        assertEquals(1, result.size());
+        assertTrue(result.get(0).isLookingFor());
+        assertEquals(ProfileType.CONSUMER, result.get(0).profileType());
     }
 }

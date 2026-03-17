@@ -15,6 +15,7 @@ public record ProfileResponse(
         Set<String> sportsTags,
         boolean isPublic,
         boolean isEmailPublic,
-        boolean isPhonePublic
+        boolean isPhonePublic,
+        boolean isLookingFor
 ) {
 }

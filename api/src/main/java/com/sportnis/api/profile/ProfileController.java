@@ -7,6 +7,7 @@ import com.sportnis.api.profile.dto.ProfileCreateRequest;
 import com.sportnis.api.profile.dto.ProfileDetailsResponse;
 import com.sportnis.api.profile.dto.ProfilePrivacyUpdateRequest;
 import com.sportnis.api.profile.dto.ProfileResponse;
+import com.sportnis.api.profile.dto.ProfileSearchingUpdateRequest;
 import com.sportnis.api.profile.dto.ProfileUpdateRequest;
 import com.sportnis.api.profile.dto.ProviderDetailsResponse;
 import com.sportnis.api.profile.dto.ProviderDetailsUpdateRequest;
@@ -79,6 +80,15 @@ public class ProfileController {
         return profileService.listPublicProfiles();
     }
 
+    @GetMapping("/public/searching")
+    @Operation(
+            summary = "List public searching consumer profiles",
+            description = "Returns public CONSUMER profiles with enabled \"in search\" flag."
+    )
+    public List<ProfileResponse> listPublicSearchingProfiles() {
+        return profileService.listPublicSearchingProfiles();
+    }
+
     @PostMapping
     @Operation(
             summary = "Создать профиль",
@@ -127,6 +137,16 @@ public class ProfileController {
     )
     public ProfileResponse patchMyPrivacy(@Valid @RequestBody ProfilePrivacyUpdateRequest request) {
         return profileService.patchMyPrivacy(currentUserProvider.getCurrentUserId(), request);
+    }
+
+    @PutMapping("/me/searching")
+    @Operation(
+            summary = "Переключить режим поиска",
+            description = "Включает или выключает попадание активного consumer-профиля в публичную выборку \"в поиске\".",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ProfileResponse updateMySearching(@Valid @RequestBody ProfileSearchingUpdateRequest request) {
+        return profileService.updateMySearching(currentUserProvider.getCurrentUserId(), request);
     }
 
     @GetMapping("/me/details")
