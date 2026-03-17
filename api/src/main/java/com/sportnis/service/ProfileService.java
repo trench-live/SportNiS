@@ -7,6 +7,7 @@ import com.sportnis.api.profile.dto.ProfileCreateRequest;
 import com.sportnis.api.profile.dto.ProfileDetailsResponse;
 import com.sportnis.api.profile.dto.ProfilePrivacyUpdateRequest;
 import com.sportnis.api.profile.dto.ProfileResponse;
+import com.sportnis.api.profile.dto.ProfileSearchingUpdateRequest;
 import com.sportnis.api.profile.dto.ProfileUpdateRequest;
 import com.sportnis.api.profile.dto.ProviderDetailsResponse;
 import com.sportnis.api.profile.dto.ProviderDetailsUpdateRequest;
@@ -75,6 +76,14 @@ public class ProfileService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<ProfileResponse> listPublicSearchingProfiles() {
+        return profileRepository.findAllByIsPublicTrueAndProfileTypeAndIsLookingForTrueOrderByCreatedAtDesc(ProfileType.CONSUMER)
+                .stream()
+                .map(this::mapProfile)
+                .toList();
+    }
+
     @Transactional
     public ProfileResponse updateMyProfile(UUID userId, ProfileUpdateRequest request) {
         Profile profile = findActiveProfile(userId);
@@ -107,6 +116,17 @@ public class ProfileService {
         if (request.isPhonePublic() != null) {
             profile.setPhonePublic(request.isPhonePublic());
         }
+        Profile saved = profileRepository.save(profile);
+        return mapProfile(saved);
+    }
+
+    @Transactional
+    public ProfileResponse updateMySearching(UUID userId, ProfileSearchingUpdateRequest request) {
+        Profile profile = findActiveProfile(userId);
+        if (profile.getProfileType() != ProfileType.CONSUMER) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only CONSUMER profile can use searching mode");
+        }
+        profile.setLookingFor(request.isLookingFor());
         Profile saved = profileRepository.save(profile);
         return mapProfile(saved);
     }
@@ -198,6 +218,7 @@ public class ProfileService {
                         profile.getId(),
                         profile.getProfileType(),
                         profile.getDisplayName(),
+                        profile.isLookingFor(),
                         profile.getId().equals(activeProfileId)
                 ))
                 .toList();
@@ -226,6 +247,7 @@ public class ProfileService {
         profile.setPublic(true);
         profile.setEmailPublic(false);
         profile.setPhonePublic(false);
+        profile.setLookingFor(false);
         profile.setOnboardingStep(OnboardingStep.REGISTERED);
 
         if (profile.getProfileType() == ProfileType.CONSUMER) {
@@ -319,7 +341,8 @@ public class ProfileService {
                 Set.copyOf(profile.getSportsTags()),
                 profile.isPublic(),
                 profile.isEmailPublic(),
-                profile.isPhonePublic()
+                profile.isPhonePublic(),
+                profile.isLookingFor()
         );
     }
 

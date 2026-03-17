@@ -14,12 +14,15 @@ import java.util.Set;
 public record ListingUpdateRequest(
         @NotBlank(message = "title is required")
         @Size(max = 255, message = "title max length is 255")
-        @Schema(description = "Заголовок листинга.", example = "Ищу тренера по бегу")
+        @Schema(description = "Заголовок листинга.", example = "Набор в детскую футбольную группу")
         String title,
         @NotBlank(message = "description is required")
         @Size(max = 5000, message = "description max length is 5000")
-        @Schema(description = "Описание листинга.", example = "Нужен тренер 2-3 раза в неделю.")
+        @Schema(description = "Описание листинга.", example = "Ищем футболистов 2013-2015 года рождения на регулярные тренировки.")
         String description,
+        @Size(max = 500, message = "contactInfo max length is 500")
+        @Schema(description = "Контактная информация владельца листинга.", example = "Telegram: @coach_ivan, +7 900 000-00-00")
+        String contactInfo,
         @Schema(description = "Теги листинга.", example = "[\"running\",\"beginner\"]")
         Set<@Size(max = 80, message = "tag max length is 80") String> tags,
         @Size(max = 120, message = "city max length is 120")
@@ -50,4 +53,3 @@ public record ListingUpdateRequest(
         return manualCloseOnly == null || !manualCloseOnly || expiresAt == null;
     }
 }
-

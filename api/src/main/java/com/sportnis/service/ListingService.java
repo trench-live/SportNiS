@@ -1,13 +1,16 @@
 package com.sportnis.service;
 
 import com.sportnis.api.listing.dto.ListingCreateRequest;
+import com.sportnis.entity.enums.ProfileType;
 import com.sportnis.api.listing.dto.ListingResponse;
 import com.sportnis.api.listing.dto.ListingUpdateRequest;
 import com.sportnis.entity.enums.ListingStatus;
 import com.sportnis.entity.enums.ListingType;
+import com.sportnis.entity.enums.ListingReplyStatus;
 import com.sportnis.entity.listing.Listing;
 import com.sportnis.entity.profile.Profile;
 import com.sportnis.entity.user.User;
+import com.sportnis.repository.listing.ListingReplyRepository;
 import com.sportnis.repository.listing.ListingRepository;
 import com.sportnis.repository.profile.ProfileRepository;
 import com.sportnis.repository.user.UserRepository;
@@ -26,15 +29,18 @@ public class ListingService {
 
     private static final String CURRENCY_RUB = "RUB";
 
+    private final ListingReplyRepository listingReplyRepository;
     private final ListingRepository listingRepository;
     private final ProfileRepository profileRepository;
     private final UserRepository userRepository;
 
     public ListingService(
+            ListingReplyRepository listingReplyRepository,
             ListingRepository listingRepository,
             ProfileRepository profileRepository,
             UserRepository userRepository
     ) {
+        this.listingReplyRepository = listingReplyRepository;
         this.listingRepository = listingRepository;
         this.profileRepository = profileRepository;
         this.userRepository = userRepository;
@@ -43,14 +49,20 @@ public class ListingService {
     @Transactional
     public ListingResponse createMyListing(UUID userId, ListingCreateRequest request) {
         Profile ownerProfile = findActiveProfile(userId);
+        String normalizedTitle = request.title().trim();
+        String normalizedDescription = request.description().trim();
+
+        validateCreateTypeByProfile(ownerProfile, request.type());
+        validateNoDuplicateActiveOffer(ownerProfile, request.type(), normalizedTitle, normalizedDescription);
         validateExpiresAt(request.manualCloseOnly(), request.expiresAt());
 
         Listing listing = new Listing();
         listing.setOwnerProfile(ownerProfile);
         listing.setType(request.type());
         listing.setStatus(ListingStatus.PUBLISHED);
-        listing.setTitle(request.title().trim());
-        listing.setDescription(request.description().trim());
+        listing.setTitle(normalizedTitle);
+        listing.setDescription(normalizedDescription);
+        listing.setContactInfo(blankToNull(request.contactInfo()));
         listing.setTags(new HashSet<>(request.tags() == null ? Set.of() : request.tags()));
         listing.setCity(blankToNull(request.city()));
         listing.setFormat(request.format());
@@ -61,7 +73,7 @@ public class ListingService {
         listing.setManualCloseOnly(request.manualCloseOnly());
 
         Listing saved = listingRepository.save(listing);
-        return map(saved);
+        return map(saved, true, true);
     }
 
     @Transactional
@@ -69,7 +81,7 @@ public class ListingService {
         closeExpiredListings();
         Profile ownerProfile = findActiveProfile(userId);
         return listingRepository.findAllByOwnerProfile_IdOrderByCreatedAtDesc(ownerProfile.getId()).stream()
-                .map(this::map)
+                .map(listing -> map(listing, true, true))
                 .toList();
     }
 
@@ -79,7 +91,7 @@ public class ListingService {
         Profile ownerProfile = findActiveProfile(userId);
         Listing listing = listingRepository.findByIdAndOwnerProfile_Id(listingId, ownerProfile.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
-        return map(listing);
+        return map(listing, true, true);
     }
 
     @Transactional
@@ -92,10 +104,15 @@ public class ListingService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only PUBLISHED listing can be updated");
         }
 
+        String normalizedTitle = request.title().trim();
+        String normalizedDescription = request.description().trim();
+
+        validateNoDuplicateActiveOfferForUpdate(ownerProfile, listing, normalizedTitle, normalizedDescription);
         validateExpiresAt(request.manualCloseOnly(), request.expiresAt());
 
-        listing.setTitle(request.title().trim());
-        listing.setDescription(request.description().trim());
+        listing.setTitle(normalizedTitle);
+        listing.setDescription(normalizedDescription);
+        listing.setContactInfo(blankToNull(request.contactInfo()));
         listing.setTags(new HashSet<>(request.tags() == null ? Set.of() : request.tags()));
         listing.setCity(blankToNull(request.city()));
         listing.setFormat(request.format());
@@ -106,7 +123,7 @@ public class ListingService {
         listing.setManualCloseOnly(request.manualCloseOnly());
 
         Listing saved = listingRepository.save(listing);
-        return map(saved);
+        return map(saved, true, true);
     }
 
     @Transactional
@@ -119,7 +136,7 @@ public class ListingService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Closed listing cannot be archived");
         }
         listing.setStatus(ListingStatus.ARCHIVED);
-        return map(listingRepository.save(listing));
+        return map(listingRepository.save(listing), true, true);
     }
 
     @Transactional
@@ -129,24 +146,32 @@ public class ListingService {
         Listing listing = listingRepository.findByIdAndOwnerProfile_Id(listingId, ownerProfile.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
         listing.setStatus(ListingStatus.CLOSED);
-        return map(listingRepository.save(listing));
+        return map(listingRepository.save(listing), true, true);
     }
 
     @Transactional
-    public List<ListingResponse> listPublicListings(ListingType type) {
+    public List<ListingResponse> listPublicListings(UUID currentUserId, ListingType type) {
         closeExpiredListings();
         List<Listing> listings = type == null
                 ? listingRepository.findAllByStatusOrderByCreatedAtDesc(ListingStatus.PUBLISHED)
                 : listingRepository.findAllByStatusAndTypeOrderByCreatedAtDesc(ListingStatus.PUBLISHED, type);
-        return listings.stream().map(this::map).toList();
+        Profile viewerProfile = resolveActiveProfileOrNull(currentUserId);
+        return listings.stream()
+                .map(listing -> {
+                    boolean canViewContactInfo = canViewContactInfo(listing, viewerProfile);
+                    return map(listing, canViewContactInfo, canViewContactInfo);
+                })
+                .toList();
     }
 
     @Transactional
-    public ListingResponse getPublicListing(UUID listingId) {
+    public ListingResponse getPublicListing(UUID currentUserId, UUID listingId) {
         closeExpiredListings();
         Listing listing = listingRepository.findByIdAndStatus(listingId, ListingStatus.PUBLISHED)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
-        return map(listing);
+        Profile viewerProfile = resolveActiveProfileOrNull(currentUserId);
+        boolean canViewContactInfo = canViewContactInfo(listing, viewerProfile);
+        return map(listing, canViewContactInfo, canViewContactInfo);
     }
 
     private User findUser(UUID userId) {
@@ -157,6 +182,21 @@ public class ListingService {
     private Profile findActiveProfile(UUID userId) {
         User user = findUser(userId);
         return resolveActiveProfile(user);
+    }
+
+    private Profile resolveActiveProfileOrNull(UUID userId) {
+        if (userId == null) {
+            return null;
+        }
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return null;
+        }
+        try {
+            return resolveActiveProfile(user);
+        } catch (ResponseStatusException ex) {
+            return null;
+        }
     }
 
     private Profile resolveActiveProfile(User user) {
@@ -187,6 +227,64 @@ public class ListingService {
         }
     }
 
+    private void validateCreateTypeByProfile(Profile ownerProfile, ListingType type) {
+        if (ownerProfile.getProfileType() == ProfileType.CONSUMER) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONSUMER profile cannot create listings");
+        }
+        if (ownerProfile.getProfileType() == ProfileType.PROVIDER && type != ListingType.OFFER) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "PROVIDER profile can create only OFFER listings");
+        }
+    }
+
+    private void validateNoDuplicateActiveOffer(
+            Profile ownerProfile,
+            ListingType type,
+            String title,
+            String description
+    ) {
+        if (ownerProfile.getProfileType() != ProfileType.PROVIDER || type != ListingType.OFFER) {
+            return;
+        }
+        boolean duplicateExists = listingRepository.existsByOwnerProfile_IdAndStatusAndTypeAndTitleIgnoreCaseAndDescriptionIgnoreCase(
+                ownerProfile.getId(),
+                ListingStatus.PUBLISHED,
+                ListingType.OFFER,
+                title,
+                description
+        );
+        if (duplicateExists) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Duplicate active OFFER listing already exists for this profile"
+            );
+        }
+    }
+
+    private void validateNoDuplicateActiveOfferForUpdate(
+            Profile ownerProfile,
+            Listing listing,
+            String title,
+            String description
+    ) {
+        if (ownerProfile.getProfileType() != ProfileType.PROVIDER || listing.getType() != ListingType.OFFER) {
+            return;
+        }
+        boolean duplicateExists = listingRepository.existsByOwnerProfile_IdAndStatusAndTypeAndIdNotAndTitleIgnoreCaseAndDescriptionIgnoreCase(
+                ownerProfile.getId(),
+                ListingStatus.PUBLISHED,
+                ListingType.OFFER,
+                listing.getId(),
+                title,
+                description
+        );
+        if (duplicateExists) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Duplicate active OFFER listing already exists for this profile"
+            );
+        }
+    }
+
     private void closeExpiredListings() {
         List<Listing> expired = listingRepository.findAllByStatusAndManualCloseOnlyFalseAndExpiresAtLessThanEqual(
                 ListingStatus.PUBLISHED,
@@ -206,7 +304,21 @@ public class ListingService {
         return value.trim();
     }
 
-    private ListingResponse map(Listing listing) {
+    private boolean canViewContactInfo(Listing listing, Profile viewerProfile) {
+        if (viewerProfile == null) {
+            return false;
+        }
+        if (listing.getOwnerProfile().getId().equals(viewerProfile.getId())) {
+            return true;
+        }
+        return listingReplyRepository.existsByListing_IdAndResponderProfile_IdAndStatus(
+                listing.getId(),
+                viewerProfile.getId(),
+                ListingReplyStatus.ACCEPTED
+        );
+    }
+
+    private ListingResponse map(Listing listing, boolean includeContactInfo, boolean contactVisibleForMe) {
         return new ListingResponse(
                 listing.getId(),
                 listing.getOwnerProfile().getId(),
@@ -214,6 +326,8 @@ public class ListingService {
                 listing.getStatus(),
                 listing.getTitle(),
                 listing.getDescription(),
+                includeContactInfo ? listing.getContactInfo() : null,
+                contactVisibleForMe,
                 Set.copyOf(listing.getTags()),
                 listing.getCity(),
                 listing.getFormat(),

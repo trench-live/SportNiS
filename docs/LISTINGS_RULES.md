@@ -1,21 +1,27 @@
-# Sportnis Listings Rules (MVP Draft)
+# Sportnis Discovery Rules (MVP Draft)
 
 ## Status
-- Version: draft-7
-- Date: 2026-03-12
+- Version: draft-10
+- Date: 2026-03-17
 
-## Listing Purpose
+## Discovery Purpose
 - `Profile` answers "who you are".
-- `Listing` answers "what you need/offer right now".
+- `Provider listing` answers "what you offer right now".
+- `Consumer` visibility in discovery is controlled by profile flag `isLookingFor`.
 
 ## Listing Types
-- `REQUEST` - demand from consumer side.
 - `OFFER` - offer from provider side.
 
+## Profile Type Matrix
+- `CONSUMER` profile does not create listings in MVP.
+- `CONSUMER` profile can be shown in discovery if `isLookingFor = true`.
+- `PROVIDER` profile can create only `OFFER` listings.
+- `PROVIDER` profile can have multiple active `OFFER` listings in MVP.
+- Active exact duplicates of provider offers from the same profile are rejected as spam protection.
+
 ## Unified Model
-- Single listing model for both sides.
-- No extra sub-type field in MVP (no `offerMode`).
-- Differences between `REQUEST` and `OFFER` are handled by `type` and UI.
+- Listings are kept only for provider-side offers in MVP.
+- Consumer discovery goes through profile visibility, not through pseudo-request listings.
 
 ## Listing Statuses
 - `PUBLISHED`
@@ -25,9 +31,10 @@
 ## Core Fields
 - `id`
 - `ownerProfileId`
-- `type` (`REQUEST`/`OFFER`)
+- `type` (`OFFER` in current MVP implementation)
 - `title`
 - `description`
+- `contactInfo` (nullable)
 - `tags`
 - `city`
 - `format` (`ONLINE`/`OFFLINE`/`HYBRID`)
@@ -50,6 +57,19 @@
 - Listing owner contact is visible to responder only after response status `ACCEPTED`.
 - No in-app chat in MVP listings scope.
 - Response message is optional in MVP.
+
+## Listing Response Rules
+- Response entity is stored separately from listing.
+- Response statuses: `NEW`, `ACCEPTED`, `REJECTED`.
+- One profile can create only one response per listing.
+- Listing owner cannot respond to own listing.
+- New responses are allowed only for `PUBLISHED` listings.
+- `contactInfo` becomes visible to listing owner and to responder only after that responder status becomes `ACCEPTED`.
+
+## Consumer Discovery Rules
+- `CONSUMER` profile enters discovery only when `isLookingFor = true`.
+- `isLookingFor` can be changed only for active consumer profile.
+- Public endpoint `/api/v1/profiles/public/searching` returns public consumer profiles currently in search.
 
 ## Lifetime Rules
 - If `manualCloseOnly = true`, listing stays active until owner closes it manually.

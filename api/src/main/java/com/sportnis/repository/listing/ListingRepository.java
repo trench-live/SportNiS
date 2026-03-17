@@ -23,6 +23,23 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
 
     Optional<Listing> findByIdAndStatus(UUID listingId, ListingStatus status);
 
+    boolean existsByOwnerProfile_IdAndStatusAndTypeAndTitleIgnoreCaseAndDescriptionIgnoreCase(
+            UUID ownerProfileId,
+            ListingStatus status,
+            ListingType type,
+            String title,
+            String description
+    );
+
+    boolean existsByOwnerProfile_IdAndStatusAndTypeAndIdNotAndTitleIgnoreCaseAndDescriptionIgnoreCase(
+            UUID ownerProfileId,
+            ListingStatus status,
+            ListingType type,
+            UUID listingId,
+            String title,
+            String description
+    );
+
     List<Listing> findAllByStatusAndManualCloseOnlyFalseAndExpiresAtLessThanEqual(
             ListingStatus status,
             Instant now

@@ -1,10 +1,13 @@
 package com.sportnis.api.listing;
 
 import com.sportnis.api.listing.dto.ListingCreateRequest;
+import com.sportnis.api.listing.dto.ListingReplyCreateRequest;
+import com.sportnis.api.listing.dto.ListingReplyResponse;
 import com.sportnis.api.listing.dto.ListingResponse;
 import com.sportnis.api.listing.dto.ListingUpdateRequest;
 import com.sportnis.entity.enums.ListingType;
 import com.sportnis.security.CurrentUserProvider;
+import com.sportnis.service.ListingReplyService;
 import com.sportnis.service.ListingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -27,17 +30,23 @@ import org.springframework.web.bind.annotation.RestController;
 public class ListingController {
 
     private final ListingService listingService;
+    private final ListingReplyService listingReplyService;
     private final CurrentUserProvider currentUserProvider;
 
-    public ListingController(ListingService listingService, CurrentUserProvider currentUserProvider) {
+    public ListingController(
+            ListingService listingService,
+            ListingReplyService listingReplyService,
+            CurrentUserProvider currentUserProvider
+    ) {
         this.listingService = listingService;
+        this.listingReplyService = listingReplyService;
         this.currentUserProvider = currentUserProvider;
     }
 
     @PostMapping
     @Operation(
             summary = "Создать листинг",
-            description = "Создает листинг от активного профиля текущего пользователя.",
+            description = "Создает OFFER-листинг от активного provider-профиля текущего пользователя.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     public ListingResponse createMyListing(@Valid @RequestBody ListingCreateRequest request) {
@@ -94,6 +103,55 @@ public class ListingController {
         return listingService.closeMyListing(currentUserProvider.getCurrentUserId(), id);
     }
 
+    @PostMapping("/{id}/responses")
+    @Operation(
+            summary = "Откликнуться на листинг",
+            description = "Создает отклик активного профиля на provider-листинг. Один отклик на листинг от одного профиля.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ListingReplyResponse createMyReply(
+            @PathVariable UUID id,
+            @Valid @RequestBody ListingReplyCreateRequest request
+    ) {
+        return listingReplyService.createMyReply(currentUserProvider.getCurrentUserId(), id, request);
+    }
+
+    @GetMapping("/my/{id}/responses")
+    @Operation(
+            summary = "Отклики на мой листинг",
+            description = "Возвращает список откликов на листинг текущего владельца.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public List<ListingReplyResponse> listMyListingReplies(@PathVariable UUID id) {
+        return listingReplyService.listMyListingReplies(currentUserProvider.getCurrentUserId(), id);
+    }
+
+    @PostMapping("/my/{listingId}/responses/{responseId}/accept")
+    @Operation(
+            summary = "Принять отклик",
+            description = "Переводит отклик в статус ACCEPTED и открывает contactInfo откликнувшемуся профилю.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ListingReplyResponse acceptMyListingReply(
+            @PathVariable UUID listingId,
+            @PathVariable UUID responseId
+    ) {
+        return listingReplyService.acceptMyListingReply(currentUserProvider.getCurrentUserId(), listingId, responseId);
+    }
+
+    @PostMapping("/my/{listingId}/responses/{responseId}/reject")
+    @Operation(
+            summary = "Отклонить отклик",
+            description = "Переводит отклик в статус REJECTED.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ListingReplyResponse rejectMyListingReply(
+            @PathVariable UUID listingId,
+            @PathVariable UUID responseId
+    ) {
+        return listingReplyService.rejectMyListingReply(currentUserProvider.getCurrentUserId(), listingId, responseId);
+    }
+
     @GetMapping
     @Operation(
             summary = "Публичный каталог листингов",
@@ -102,7 +160,7 @@ public class ListingController {
     public List<ListingResponse> listPublicListings(
             @RequestParam(required = false) ListingType type
     ) {
-        return listingService.listPublicListings(type);
+        return listingService.listPublicListings(currentUserProvider.getCurrentUserIdOrNull(), type);
     }
 
     @GetMapping("/{id}")
@@ -111,7 +169,6 @@ public class ListingController {
             description = "Возвращает публичный листинг в статусе PUBLISHED по ID."
     )
     public ListingResponse getPublicListing(@PathVariable UUID id) {
-        return listingService.getPublicListing(id);
+        return listingService.getPublicListing(currentUserProvider.getCurrentUserIdOrNull(), id);
     }
 }
-

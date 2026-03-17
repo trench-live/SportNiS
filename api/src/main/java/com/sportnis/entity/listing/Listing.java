@@ -48,6 +48,9 @@ public class Listing extends BaseEntity {
     @Column(name = "description", nullable = false)
     private String description;
 
+    @Column(name = "contact_info", length = 500)
+    private String contactInfo;
+
     @ElementCollection
     @CollectionTable(name = "listing_tags", joinColumns = @JoinColumn(name = "listing_id"))
     @Column(name = "tag", nullable = false, length = 80)

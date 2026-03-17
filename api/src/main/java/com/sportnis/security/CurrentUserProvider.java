@@ -11,15 +11,22 @@ import org.springframework.web.server.ResponseStatusException;
 public class CurrentUserProvider {
 
     public UUID getCurrentUserId() {
+        UUID userId = getCurrentUserIdOrNull();
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+        return userId;
+    }
+
+    public UUID getCurrentUserIdOrNull() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication.getName() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+            return null;
         }
         try {
             return UUID.fromString(authentication.getName());
         } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid auth principal");
+            return null;
         }
     }
 }
-

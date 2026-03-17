@@ -33,7 +33,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/auth/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/listings/my", "/api/v1/listings/my/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/listings", "/api/v1/listings/my/*/archive", "/api/v1/listings/my/*/close").authenticated()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/listings",
+                                "/api/v1/listings/*/responses",
+                                "/api/v1/listings/my/*/archive",
+                                "/api/v1/listings/my/*/close",
+                                "/api/v1/listings/my/*/responses/*/accept",
+                                "/api/v1/listings/my/*/responses/*/reject"
+                        ).authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/v1/listings/my/*").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/listings", "/api/v1/listings/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/profiles/my").authenticated()
@@ -41,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/profiles", "/api/v1/profiles/me/switch", "/api/v1/profiles/*/clear").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/v1/profiles/me", "/api/v1/profiles/me/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/profiles/me/privacy").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/profiles/public/searching").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/profiles/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/livez", "/readyz").permitAll()

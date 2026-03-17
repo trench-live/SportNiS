@@ -15,6 +15,8 @@ public record ListingResponse(
         ListingStatus status,
         String title,
         String description,
+        String contactInfo,
+        boolean contactVisibleForMe,
         Set<String> tags,
         String city,
         ListingFormat format,
@@ -27,4 +29,3 @@ public record ListingResponse(
         Instant updatedAt
 ) {
 }
-
