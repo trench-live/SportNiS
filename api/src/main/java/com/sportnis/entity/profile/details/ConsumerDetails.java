@@ -41,5 +41,8 @@ public class ConsumerDetails {
 
     @Column(name = "preferences")
     private String preferences;
+
+    @Column(name = "is_looking_for", nullable = false)
+    private boolean isLookingFor = false;
 }
 

@@ -61,9 +61,6 @@ public class Profile extends BaseEntity {
     @Column(name = "is_phone_public", nullable = false)
     private boolean isPhonePublic = false;
 
-    @Column(name = "is_looking_for", nullable = false)
-    private boolean isLookingFor = false;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "onboarding_step", nullable = false, length = 32)
     private OnboardingStep onboardingStep = OnboardingStep.REGISTERED;

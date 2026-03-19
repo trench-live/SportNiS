@@ -68,6 +68,7 @@ class ProfileServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(profileRepository.findByIdAndUser_Id(profileId, userId)).thenReturn(Optional.of(profile));
         when(profileRepository.save(any(Profile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(consumerDetailsRepository.findById(profileId)).thenReturn(Optional.empty());
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(
                 "Alex Runner",
@@ -114,6 +115,7 @@ class ProfileServiceTest {
         details.setExperienceLevel("beginner");
         details.setGoals("goal");
         details.setPreferences("preferences");
+        details.setLookingFor(true);
 
         when(profileRepository.findByIdAndUser_Id(profileId, userId)).thenReturn(Optional.of(profile));
         when(profileRepository.save(any(Profile.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -211,14 +213,19 @@ class ProfileServiceTest {
         profile.setProfileType(ProfileType.CONSUMER);
         profile.setDisplayName("Consumer");
 
+        ConsumerDetails savedDetails = new ConsumerDetails();
+        ReflectionTestUtils.setField(savedDetails, "profileId", profileId);
+        savedDetails.setProfile(profile);
+        savedDetails.setLookingFor(true);
+
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(profileRepository.findByIdAndUser_Id(profileId, userId)).thenReturn(Optional.of(profile));
-        when(profileRepository.save(any(Profile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(consumerDetailsRepository.findById(profileId)).thenReturn(Optional.empty(), Optional.of(savedDetails));
+        when(consumerDetailsRepository.save(any(ConsumerDetails.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProfileResponse response = profileService.updateMySearching(userId, new ProfileSearchingUpdateRequest(true));
 
         assertTrue(response.isLookingFor());
-        assertTrue(profile.isLookingFor());
     }
 
     @Test
@@ -252,15 +259,42 @@ class ProfileServiceTest {
         profile.setProfileType(ProfileType.CONSUMER);
         profile.setDisplayName("Searching Consumer");
         profile.setPublic(true);
-        profile.setLookingFor(true);
+        ConsumerDetails details = new ConsumerDetails();
+        ReflectionTestUtils.setField(details, "profileId", profile.getId());
+        details.setProfile(profile);
+        details.setLookingFor(true);
 
-        when(profileRepository.findAllByIsPublicTrueAndProfileTypeAndIsLookingForTrueOrderByCreatedAtDesc(ProfileType.CONSUMER))
-                .thenReturn(java.util.List.of(profile));
+        when(consumerDetailsRepository.findAllByProfile_IsPublicTrueAndIsLookingForTrueOrderByProfile_CreatedAtDesc())
+                .thenReturn(java.util.List.of(details));
+        when(consumerDetailsRepository.findById(profile.getId())).thenReturn(Optional.of(details));
 
         java.util.List<ProfileResponse> result = profileService.listPublicSearchingProfiles();
 
         assertEquals(1, result.size());
         assertTrue(result.get(0).isLookingFor());
         assertEquals(ProfileType.CONSUMER, result.get(0).profileType());
+    }
+
+    @Test
+    void getMyProfileReturnsNullSearchingFlagForProvider() {
+        UUID userId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+
+        User user = new User();
+        ReflectionTestUtils.setField(user, "id", userId);
+        user.setActiveProfileId(profileId);
+
+        Profile profile = new Profile();
+        ReflectionTestUtils.setField(profile, "id", profileId);
+        profile.setUser(user);
+        profile.setProfileType(ProfileType.PROVIDER);
+        profile.setDisplayName("Provider");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(profileRepository.findByIdAndUser_Id(profileId, userId)).thenReturn(Optional.of(profile));
+
+        ProfileResponse response = profileService.getMyProfile(userId);
+
+        assertEquals(null, response.isLookingFor());
     }
 }

@@ -7,7 +7,7 @@ public record MyProfileItemResponse(
         UUID id,
         ProfileType profileType,
         String displayName,
-        boolean isLookingFor,
+        Boolean isLookingFor,
         boolean active
 ) {
 }
