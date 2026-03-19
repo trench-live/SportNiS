@@ -78,8 +78,9 @@ public class ProfileService {
 
     @Transactional(readOnly = true)
     public List<ProfileResponse> listPublicSearchingProfiles() {
-        return profileRepository.findAllByIsPublicTrueAndProfileTypeAndIsLookingForTrueOrderByCreatedAtDesc(ProfileType.CONSUMER)
+        return consumerDetailsRepository.findAllByProfile_IsPublicTrueAndIsLookingForTrueOrderByProfile_CreatedAtDesc()
                 .stream()
+                .map(ConsumerDetails::getProfile)
                 .map(this::mapProfile)
                 .toList();
     }
@@ -126,9 +127,16 @@ public class ProfileService {
         if (profile.getProfileType() != ProfileType.CONSUMER) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only CONSUMER profile can use searching mode");
         }
-        profile.setLookingFor(request.isLookingFor());
-        Profile saved = profileRepository.save(profile);
-        return mapProfile(saved);
+
+        ConsumerDetails details = consumerDetailsRepository.findById(profile.getId())
+                .orElseGet(() -> {
+                    ConsumerDetails created = new ConsumerDetails();
+                    created.setProfile(profile);
+                    return created;
+                });
+        details.setLookingFor(request.isLookingFor());
+        consumerDetailsRepository.save(details);
+        return mapProfile(profile);
     }
 
     @Transactional
@@ -218,7 +226,7 @@ public class ProfileService {
                         profile.getId(),
                         profile.getProfileType(),
                         profile.getDisplayName(),
-                        profile.isLookingFor(),
+                        getSearchingFlag(profile),
                         profile.getId().equals(activeProfileId)
                 ))
                 .toList();
@@ -247,7 +255,6 @@ public class ProfileService {
         profile.setPublic(true);
         profile.setEmailPublic(false);
         profile.setPhonePublic(false);
-        profile.setLookingFor(false);
         profile.setOnboardingStep(OnboardingStep.REGISTERED);
 
         if (profile.getProfileType() == ProfileType.CONSUMER) {
@@ -256,6 +263,7 @@ public class ProfileService {
                 details.setExperienceLevel(null);
                 details.setGoals(null);
                 details.setPreferences(null);
+                details.setLookingFor(false);
                 consumerDetailsRepository.save(details);
             });
         } else if (profile.getProfileType() == ProfileType.PROVIDER) {
@@ -342,7 +350,7 @@ public class ProfileService {
                 profile.isPublic(),
                 profile.isEmailPublic(),
                 profile.isPhonePublic(),
-                profile.isLookingFor()
+                getSearchingFlag(profile)
         );
     }
 
@@ -369,8 +377,18 @@ public class ProfileService {
                 details.getBirthYear(),
                 details.getExperienceLevel(),
                 details.getGoals(),
-                details.getPreferences()
+                details.getPreferences(),
+                details.isLookingFor()
         );
+    }
+
+    private Boolean getSearchingFlag(Profile profile) {
+        if (profile.getProfileType() != ProfileType.CONSUMER) {
+            return null;
+        }
+        return consumerDetailsRepository.findById(profile.getId())
+                .map(ConsumerDetails::isLookingFor)
+                .orElse(false);
     }
 
     private ProviderDetailsResponse mapProviderDetails(ProviderDetails details) {

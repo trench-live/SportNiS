@@ -16,6 +16,6 @@ public record ProfileResponse(
         boolean isPublic,
         boolean isEmailPublic,
         boolean isPhonePublic,
-        boolean isLookingFor
+        Boolean isLookingFor
 ) {
 }

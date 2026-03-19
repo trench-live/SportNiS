@@ -155,7 +155,8 @@ public class ListingController {
     @GetMapping
     @Operation(
             summary = "Публичный каталог листингов",
-            description = "Возвращает публичные листинги. Можно фильтровать по type."
+            description = "Возвращает публичные листинги. Можно фильтровать по type.",
+            security = @SecurityRequirement(name = "bearerAuth")
     )
     public List<ListingResponse> listPublicListings(
             @RequestParam(required = false) ListingType type
@@ -166,7 +167,8 @@ public class ListingController {
     @GetMapping("/{id}")
     @Operation(
             summary = "Публичный листинг по ID",
-            description = "Возвращает публичный листинг в статусе PUBLISHED по ID."
+            description = "Возвращает публичный листинг в статусе PUBLISHED по ID.",
+            security = @SecurityRequirement(name = "bearerAuth")
     )
     public ListingResponse getPublicListing(@PathVariable UUID id) {
         return listingService.getPublicListing(currentUserProvider.getCurrentUserIdOrNull(), id);

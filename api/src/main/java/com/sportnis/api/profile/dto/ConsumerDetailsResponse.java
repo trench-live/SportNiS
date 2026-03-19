@@ -7,7 +7,8 @@ public record ConsumerDetailsResponse(
         Integer birthYear,
         String experienceLevel,
         String goals,
-        String preferences
+        String preferences,
+        boolean isLookingFor
 ) {
 }
 

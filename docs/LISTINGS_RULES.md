@@ -1,13 +1,14 @@
 # Sportnis Discovery Rules (MVP Draft)
 
 ## Status
-- Version: draft-10
-- Date: 2026-03-17
+- Version: draft-11
+- Date: 2026-03-19
 
 ## Discovery Purpose
 - `Profile` answers "who you are".
 - `Provider listing` answers "what you offer right now".
 - `Consumer` visibility in discovery is controlled by profile flag `isLookingFor`.
+Current storage: `isLookingFor` is stored in `consumer_details`, not in common `profiles` data.
 
 ## Listing Types
 - `OFFER` - offer from provider side.
@@ -70,6 +71,18 @@
 - `CONSUMER` profile enters discovery only when `isLookingFor = true`.
 - `isLookingFor` can be changed only for active consumer profile.
 - Public endpoint `/api/v1/profiles/public/searching` returns public consumer profiles currently in search.
+
+## Feed Rules
+- Feed is not a separate database entity in MVP.
+- Feed is built dynamically from existing `profiles` and `listings`.
+- Public endpoint: `GET /api/v1/feed`.
+- Viewer scenarios:
+- `guest` receives mixed feed: `consumer profiles in search` + `provider listings`.
+- `consumer` receives only `provider listings`.
+- `provider` receives only `consumer profiles in search`.
+- Feed item is returned as unified response model, not as original entity shape.
+- Supported MVP query params: `page`, `size`, `city`, `tag`.
+- Feed is sorted by `createdAt` descending.
 
 ## Lifetime Rules
 - If `manualCloseOnly = true`, listing stays active until owner closes it manually.
