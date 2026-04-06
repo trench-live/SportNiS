@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 import com.sportnis.api.profile.dto.ProfileResponse;
 import com.sportnis.api.profile.dto.ProfileSearchingUpdateRequest;
@@ -296,5 +297,64 @@ class ProfileServiceTest {
         ProfileResponse response = profileService.getMyProfile(userId);
 
         assertEquals(null, response.isLookingFor());
+    }
+
+    @Test
+    void deleteMyProfileDeletesActiveProfileAndSwitchesToNext() {
+        UUID userId = UUID.randomUUID();
+        UUID activeProfileId = UUID.randomUUID();
+        UUID nextProfileId = UUID.randomUUID();
+
+        User user = new User();
+        ReflectionTestUtils.setField(user, "id", userId);
+        user.setActiveProfileId(activeProfileId);
+
+        Profile activeProfile = new Profile();
+        ReflectionTestUtils.setField(activeProfile, "id", activeProfileId);
+        activeProfile.setUser(user);
+        activeProfile.setProfileType(ProfileType.CONSUMER);
+        activeProfile.setDisplayName("Active");
+
+        Profile nextProfile = new Profile();
+        ReflectionTestUtils.setField(nextProfile, "id", nextProfileId);
+        nextProfile.setUser(user);
+        nextProfile.setProfileType(ProfileType.PROVIDER);
+        nextProfile.setDisplayName("Next");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(profileRepository.findByIdAndUser_Id(activeProfileId, userId)).thenReturn(Optional.of(activeProfile));
+        when(profileRepository.findAllByUser_IdOrderByCreatedAtAsc(userId)).thenReturn(java.util.List.of(activeProfile, nextProfile));
+
+        profileService.deleteMyProfile(userId);
+
+        assertEquals(nextProfileId, user.getActiveProfileId());
+        verify(userRepository).save(user);
+        verify(profileRepository).delete(activeProfile);
+    }
+
+    @Test
+    void deleteMyProfileRejectsDeletingLastProfile() {
+        UUID userId = UUID.randomUUID();
+        UUID activeProfileId = UUID.randomUUID();
+
+        User user = new User();
+        ReflectionTestUtils.setField(user, "id", userId);
+        user.setActiveProfileId(activeProfileId);
+
+        Profile activeProfile = new Profile();
+        ReflectionTestUtils.setField(activeProfile, "id", activeProfileId);
+        activeProfile.setUser(user);
+        activeProfile.setProfileType(ProfileType.CONSUMER);
+        activeProfile.setDisplayName("Only");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(profileRepository.findByIdAndUser_Id(activeProfileId, userId)).thenReturn(Optional.of(activeProfile));
+        when(profileRepository.findAllByUser_IdOrderByCreatedAtAsc(userId)).thenReturn(java.util.List.of(activeProfile));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> profileService.deleteMyProfile(userId));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(userRepository, times(0)).save(any(User.class));
+        verify(profileRepository, times(0)).delete(any(Profile.class));
     }
 }
