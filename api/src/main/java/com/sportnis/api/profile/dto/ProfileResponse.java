@@ -1,5 +1,7 @@
 package com.sportnis.api.profile.dto;
 
+import com.sportnis.entity.enums.ProfileCompletionStatus;
+import java.util.List;
 import com.sportnis.entity.enums.ProfileType;
 import java.util.Set;
 import java.util.UUID;
@@ -16,6 +18,8 @@ public record ProfileResponse(
         boolean isPublic,
         boolean isEmailPublic,
         boolean isPhonePublic,
-        Boolean isLookingFor
+        Boolean isLookingFor,
+        ProfileCompletionStatus completionStatus,
+        List<String> missingFields
 ) {
 }

@@ -12,6 +12,7 @@ import com.sportnis.api.profile.dto.ProfileUpdateRequest;
 import com.sportnis.api.profile.dto.ProviderDetailsResponse;
 import com.sportnis.api.profile.dto.ProviderDetailsUpdateRequest;
 import com.sportnis.entity.enums.OnboardingStep;
+import com.sportnis.entity.enums.ProfileCompletionStatus;
 import com.sportnis.entity.enums.ProfileType;
 import com.sportnis.entity.profile.Profile;
 import com.sportnis.entity.profile.details.ConsumerDetails;
@@ -20,12 +21,13 @@ import com.sportnis.entity.user.User;
 import com.sportnis.repository.profile.ProfileRepository;
 import com.sportnis.repository.profile.details.ConsumerDetailsRepository;
 import com.sportnis.repository.profile.details.ProviderDetailsRepository;
+import com.sportnis.repository.user.UserRepository;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
-import com.sportnis.repository.user.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -334,12 +336,7 @@ public class ProfileService {
     }
 
     private void advanceOnboardingStepAfterProfileUpdate(Profile profile) {
-        if (!hasMeaningfulProfileData(profile)) {
-            return;
-        }
-        if (profile.getOnboardingStep() == OnboardingStep.REGISTERED) {
-            profile.setOnboardingStep(OnboardingStep.PROFILE_BASICS_FILLED);
-        }
+        syncOnboardingStep(profile);
     }
 
     private boolean hasMeaningfulProfileData(Profile profile) {
@@ -358,7 +355,47 @@ public class ProfileService {
         return !profile.getSportsTags().isEmpty();
     }
 
+    private void syncOnboardingStep(Profile profile) {
+        ProfileCompletionSnapshot completion = calculateCompletion(profile);
+        if (completion.status() == ProfileCompletionStatus.COMPLETED) {
+            profile.setOnboardingStep(OnboardingStep.DONE);
+            return;
+        }
+        if (completion.status() == ProfileCompletionStatus.IN_PROGRESS) {
+            profile.setOnboardingStep(OnboardingStep.PROFILE_BASICS_FILLED);
+            return;
+        }
+        profile.setOnboardingStep(OnboardingStep.REGISTERED);
+    }
+
+    private ProfileCompletionSnapshot calculateCompletion(Profile profile) {
+        List<String> missingFields = new ArrayList<>();
+
+        if (profile.getDisplayName() == null || profile.getDisplayName().isBlank() || isDefaultDisplayName(profile)) {
+            missingFields.add("displayName");
+        }
+        if (profile.getAbout() == null || profile.getAbout().isBlank()) {
+            missingFields.add("about");
+        }
+        if (profile.getSportsTags() == null || profile.getSportsTags().isEmpty()) {
+            missingFields.add("sportsTags");
+        }
+
+        if (missingFields.isEmpty()) {
+            return new ProfileCompletionSnapshot(ProfileCompletionStatus.COMPLETED, List.of());
+        }
+        if (hasMeaningfulProfileData(profile)) {
+            return new ProfileCompletionSnapshot(ProfileCompletionStatus.IN_PROGRESS, List.copyOf(missingFields));
+        }
+        return new ProfileCompletionSnapshot(ProfileCompletionStatus.NOT_STARTED, List.copyOf(missingFields));
+    }
+
+    private boolean isDefaultDisplayName(Profile profile) {
+        return defaultDisplayName(profile.getProfileType()).equals(profile.getDisplayName());
+    }
+
     private ProfileResponse mapProfile(Profile profile) {
+        ProfileCompletionSnapshot completion = calculateCompletion(profile);
         return new ProfileResponse(
                 profile.getId(),
                 profile.getUser().getId(),
@@ -371,7 +408,9 @@ public class ProfileService {
                 profile.isPublic(),
                 profile.isEmailPublic(),
                 profile.isPhonePublic(),
-                getSearchingFlag(profile)
+                getSearchingFlag(profile),
+                completion.status(),
+                completion.missingFields()
         );
     }
 
@@ -436,5 +475,11 @@ public class ProfileService {
             return null;
         }
         return currency.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private record ProfileCompletionSnapshot(
+            ProfileCompletionStatus status,
+            List<String> missingFields
+    ) {
     }
 }
