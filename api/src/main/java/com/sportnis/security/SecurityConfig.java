@@ -48,6 +48,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/profiles/my").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/profiles/me", "/api/v1/profiles/me/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/profiles", "/api/v1/profiles/me/switch", "/api/v1/profiles/*/clear").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/profiles/me").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/v1/profiles/me", "/api/v1/profiles/me/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/profiles/me/privacy").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/profiles/public/searching").permitAll()

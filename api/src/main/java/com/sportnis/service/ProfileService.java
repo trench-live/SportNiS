@@ -243,6 +243,27 @@ public class ProfileService {
     }
 
     @Transactional
+    public void deleteMyProfile(UUID userId) {
+        User user = findUser(userId);
+        Profile activeProfile = resolveActiveProfile(user);
+
+        List<Profile> profiles = profileRepository.findAllByUser_IdOrderByCreatedAtAsc(userId);
+        if (profiles.size() <= 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot delete the last profile");
+        }
+
+        UUID nextActiveProfileId = profiles.stream()
+                .map(Profile::getId)
+                .filter(profileId -> !profileId.equals(activeProfile.getId()))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Cannot resolve next active profile"));
+
+        user.setActiveProfileId(nextActiveProfileId);
+        userRepository.save(user);
+        profileRepository.delete(activeProfile);
+    }
+
+    @Transactional
     public ProfileResponse clearMyProfile(UUID userId, UUID profileId) {
         Profile profile = profileRepository.findByIdAndUser_Id(profileId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile not found"));

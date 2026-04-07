@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -50,6 +51,16 @@ public class ProfileController {
     )
     public ProfileResponse getMyProfile() {
         return profileService.getMyProfile(currentUserProvider.getCurrentUserId());
+    }
+
+    @DeleteMapping("/me")
+    @Operation(
+            summary = "Удалить активный профиль",
+            description = "Физически удаляет текущий активный профиль пользователя вместе со связанными данными. Последний профиль аккаунта удалить нельзя.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public void deleteMyProfile() {
+        profileService.deleteMyProfile(currentUserProvider.getCurrentUserId());
     }
 
     @GetMapping("/my")
