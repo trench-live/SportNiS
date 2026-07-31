@@ -6,7 +6,6 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 
 public record RegisterRequest(
         @Email(message = "Invalid email")
@@ -17,13 +16,6 @@ public record RegisterRequest(
         @NotBlank(message = "Password is required")
         @Schema(description = "Пароль.", example = "Passw0rd!")
         String password,
-        @NotBlank(message = "Username is required")
-        @Pattern(
-                regexp = "^[A-Za-z0-9._]{3,32}$",
-                message = "Username must be 3-32 chars and contain only letters, digits, dot or underscore"
-        )
-        @Schema(description = "Логин пользователя (уникальный).", example = "alex.runner")
-        String username,
         @NotNull(message = "Profile type is required")
         @Schema(description = "Тип первого профиля.", example = "CONSUMER")
         ProfileType profileType

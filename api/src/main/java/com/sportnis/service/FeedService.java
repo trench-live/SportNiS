@@ -128,7 +128,7 @@ public class FeedService {
     }
 
     private List<Profile> loadSearchingConsumerProfiles() {
-        return consumerDetailsRepository.findAllByProfile_IsPublicTrueAndIsLookingForTrueOrderByProfile_CreatedAtDesc()
+        return consumerDetailsRepository.findAllByIsLookingForTrueOrderByProfile_CreatedAtDesc()
                 .stream()
                 .map(ConsumerDetails::getProfile)
                 .toList();

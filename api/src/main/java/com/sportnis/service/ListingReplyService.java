@@ -76,6 +76,21 @@ public class ListingReplyService {
     }
 
     @Transactional
+    public void withdrawMyReply(UUID userId, UUID listingId) {
+        Profile responderProfile = findActiveProfile(userId);
+        ListingReply reply = listingReplyRepository
+                .findByListing_IdAndResponderProfile_Id(listingId, responderProfile.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reply not found"));
+
+        if (reply.getStatus() == ListingReplyStatus.ACCEPTED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot withdraw an accepted reply");
+        }
+
+        // Удаление освобождает уникальный слот (listing_id, responder_profile_id) — можно откликнуться заново.
+        listingReplyRepository.delete(reply);
+    }
+
+    @Transactional
     public ListingReplyResponse acceptMyListingReply(UUID userId, UUID listingId, UUID replyId) {
         return updateReplyStatus(userId, listingId, replyId, ListingReplyStatus.ACCEPTED);
     }

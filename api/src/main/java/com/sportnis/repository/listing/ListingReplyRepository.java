@@ -15,5 +15,9 @@ public interface ListingReplyRepository extends JpaRepository<ListingReply, UUID
 
     List<ListingReply> findAllByListing_IdOrderByCreatedAtDesc(UUID listingId);
 
+    List<ListingReply> findAllByResponderProfile_IdOrderByCreatedAtDesc(UUID responderProfileId);
+
     Optional<ListingReply> findByIdAndListing_Id(UUID replyId, UUID listingId);
+
+    Optional<ListingReply> findByListing_IdAndResponderProfile_Id(UUID listingId, UUID responderProfileId);
 }

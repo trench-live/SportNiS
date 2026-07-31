@@ -52,7 +52,7 @@ class FeedServiceTest {
         Profile consumerProfile = buildConsumerProfile("Consumer One", "Moscow", Set.of("running"), Instant.parse("2026-03-17T10:00:00Z"));
         Listing listing = buildProviderListing("Football Group", "Moscow", Set.of("football"), Instant.parse("2026-03-17T12:00:00Z"));
 
-        when(consumerDetailsRepository.findAllByProfile_IsPublicTrueAndIsLookingForTrueOrderByProfile_CreatedAtDesc())
+        when(consumerDetailsRepository.findAllByIsLookingForTrueOrderByProfile_CreatedAtDesc())
                 .thenReturn(List.of(buildConsumerDetails(consumerProfile, true)));
         when(listingRepository.findAllByStatusAndTypeOrderByCreatedAtDesc(ListingStatus.PUBLISHED, ListingType.OFFER))
                 .thenReturn(List.of(listing));
@@ -110,7 +110,7 @@ class FeedServiceTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(profileRepository.findByIdAndUser_Id(profileId, userId)).thenReturn(Optional.of(activeProfile));
-        when(consumerDetailsRepository.findAllByProfile_IsPublicTrueAndIsLookingForTrueOrderByProfile_CreatedAtDesc())
+        when(consumerDetailsRepository.findAllByIsLookingForTrueOrderByProfile_CreatedAtDesc())
                 .thenReturn(List.of(buildConsumerDetails(consumerProfile, true)));
 
         FeedResponse response = feedService.getFeed(userId, 0, 20, null, null);
@@ -125,7 +125,7 @@ class FeedServiceTest {
         Profile second = buildConsumerProfile("Runner Two", "Moscow", Set.of("running"), Instant.parse("2026-03-17T09:00:00Z"));
         Listing listing = buildProviderListing("Football Group", "Saint Petersburg", Set.of("football"), Instant.parse("2026-03-17T12:00:00Z"));
 
-        when(consumerDetailsRepository.findAllByProfile_IsPublicTrueAndIsLookingForTrueOrderByProfile_CreatedAtDesc())
+        when(consumerDetailsRepository.findAllByIsLookingForTrueOrderByProfile_CreatedAtDesc())
                 .thenReturn(List.of(buildConsumerDetails(first, true), buildConsumerDetails(second, true)));
         when(listingRepository.findAllByStatusAndTypeOrderByCreatedAtDesc(ListingStatus.PUBLISHED, ListingType.OFFER))
                 .thenReturn(List.of(listing));
@@ -142,7 +142,7 @@ class FeedServiceTest {
     void feedReturnsHasNextFalseOnLastPage() {
         Profile consumerProfile = buildConsumerProfile("Consumer One", "Moscow", Set.of("running"), Instant.parse("2026-03-17T10:00:00Z"));
 
-        when(consumerDetailsRepository.findAllByProfile_IsPublicTrueAndIsLookingForTrueOrderByProfile_CreatedAtDesc())
+        when(consumerDetailsRepository.findAllByIsLookingForTrueOrderByProfile_CreatedAtDesc())
                 .thenReturn(List.of(buildConsumerDetails(consumerProfile, true)));
         when(listingRepository.findAllByStatusAndTypeOrderByCreatedAtDesc(ListingStatus.PUBLISHED, ListingType.OFFER))
                 .thenReturn(List.of());

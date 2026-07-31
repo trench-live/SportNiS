@@ -77,10 +77,7 @@ class ProfileServiceTest {
                 null,
                 null,
                 null,
-                Set.of("running"),
-                true,
-                false,
-                false
+                Set.of("running")
         );
 
         ProfileResponse response = profileService.updateMyProfile(userId, request);
@@ -119,10 +116,7 @@ class ProfileServiceTest {
                 null,
                 "Moscow",
                 "Runner profile",
-                Set.of("running"),
-                true,
-                false,
-                false
+                Set.of("running")
         ));
 
         assertEquals(ProfileCompletionStatus.COMPLETED, response.completionStatus());
@@ -171,9 +165,6 @@ class ProfileServiceTest {
         assertNull(response.city());
         assertNull(response.about());
         assertTrue(response.sportsTags().isEmpty());
-        assertTrue(response.isPublic());
-        assertEquals(false, response.isEmailPublic());
-        assertEquals(false, response.isPhonePublic());
         assertEquals(false, response.isLookingFor());
         assertEquals(ProfileCompletionStatus.NOT_STARTED, response.completionStatus());
         assertTrue(response.missingFields().contains("displayName"));
@@ -207,13 +198,25 @@ class ProfileServiceTest {
     }
 
     @Test
-    void getPublicProfileThrowsNotFoundForPrivateProfile() {
+    void getPublicProfileReturnsProfileAlways() {
         UUID profileId = UUID.randomUUID();
         Profile profile = new Profile();
         ReflectionTestUtils.setField(profile, "id", profileId);
-        profile.setPublic(false);
+        profile.setUser(new User());
+        profile.setProfileType(ProfileType.PROVIDER);
+        profile.setDisplayName("Coach");
 
         when(profileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+
+        ProfileResponse response = profileService.getPublicProfile(profileId);
+
+        assertEquals("Coach", response.displayName());
+    }
+
+    @Test
+    void getPublicProfileThrowsNotFoundWhenMissing() {
+        UUID profileId = UUID.randomUUID();
+        when(profileRepository.findById(profileId)).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 profileService.getPublicProfile(profileId));
@@ -241,7 +244,6 @@ class ProfileServiceTest {
         java.util.List<ProfileResponse> result = profileService.listPublicProfiles();
 
         assertEquals(2, result.size());
-        assertTrue(result.stream().allMatch(ProfileResponse::isPublic));
     }
 
     @Test
@@ -310,7 +312,7 @@ class ProfileServiceTest {
         details.setProfile(profile);
         details.setLookingFor(true);
 
-        when(consumerDetailsRepository.findAllByProfile_IsPublicTrueAndIsLookingForTrueOrderByProfile_CreatedAtDesc())
+        when(consumerDetailsRepository.findAllByIsLookingForTrueOrderByProfile_CreatedAtDesc())
                 .thenReturn(java.util.List.of(details));
         when(consumerDetailsRepository.findById(profile.getId())).thenReturn(Optional.of(details));
 

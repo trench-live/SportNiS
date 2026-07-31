@@ -15,9 +15,6 @@ public record ProfileResponse(
         String city,
         String about,
         Set<String> sportsTags,
-        boolean isPublic,
-        boolean isEmailPublic,
-        boolean isPhonePublic,
         Boolean isLookingFor,
         ProfileCompletionStatus completionStatus,
         List<String> missingFields

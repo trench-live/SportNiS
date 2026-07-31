@@ -73,7 +73,7 @@ public class ListingService {
         listing.setManualCloseOnly(request.manualCloseOnly());
 
         Listing saved = listingRepository.save(listing);
-        return map(saved, true, true);
+        return map(saved, true, true, null);
     }
 
     @Transactional
@@ -81,7 +81,7 @@ public class ListingService {
         closeExpiredListings();
         Profile ownerProfile = findActiveProfile(userId);
         return listingRepository.findAllByOwnerProfile_IdOrderByCreatedAtDesc(ownerProfile.getId()).stream()
-                .map(listing -> map(listing, true, true))
+                .map(listing -> map(listing, true, true, null))
                 .toList();
     }
 
@@ -91,7 +91,7 @@ public class ListingService {
         Profile ownerProfile = findActiveProfile(userId);
         Listing listing = listingRepository.findByIdAndOwnerProfile_Id(listingId, ownerProfile.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
-        return map(listing, true, true);
+        return map(listing, true, true, null);
     }
 
     @Transactional
@@ -123,7 +123,7 @@ public class ListingService {
         listing.setManualCloseOnly(request.manualCloseOnly());
 
         Listing saved = listingRepository.save(listing);
-        return map(saved, true, true);
+        return map(saved, true, true, null);
     }
 
     @Transactional
@@ -136,7 +136,7 @@ public class ListingService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Closed listing cannot be archived");
         }
         listing.setStatus(ListingStatus.ARCHIVED);
-        return map(listingRepository.save(listing), true, true);
+        return map(listingRepository.save(listing), true, true, null);
     }
 
     @Transactional
@@ -146,7 +146,7 @@ public class ListingService {
         Listing listing = listingRepository.findByIdAndOwnerProfile_Id(listingId, ownerProfile.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
         listing.setStatus(ListingStatus.CLOSED);
-        return map(listingRepository.save(listing), true, true);
+        return map(listingRepository.save(listing), true, true, null);
     }
 
     @Transactional
@@ -159,7 +159,23 @@ public class ListingService {
         return listings.stream()
                 .map(listing -> {
                     boolean canViewContactInfo = canViewContactInfo(listing, viewerProfile);
-                    return map(listing, canViewContactInfo, canViewContactInfo);
+                    // В списке статус своего отклика не показываем — не гоняем лишние запросы.
+                    return map(listing, canViewContactInfo, canViewContactInfo, null);
+                })
+                .toList();
+    }
+
+    @Transactional
+    public List<ListingResponse> listMyReplies(UUID userId) {
+        closeExpiredListings();
+        Profile viewerProfile = findActiveProfile(userId);
+        // Листинги, на которые откликнулся текущий профиль — с его статусом отклика и видимостью контактов.
+        return listingReplyRepository.findAllByResponderProfile_IdOrderByCreatedAtDesc(viewerProfile.getId())
+                .stream()
+                .map(reply -> {
+                    Listing listing = reply.getListing();
+                    boolean canViewContactInfo = canViewContactInfo(listing, viewerProfile);
+                    return map(listing, canViewContactInfo, canViewContactInfo, reply.getStatus());
                 })
                 .toList();
     }
@@ -171,7 +187,7 @@ public class ListingService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
         Profile viewerProfile = resolveActiveProfileOrNull(currentUserId);
         boolean canViewContactInfo = canViewContactInfo(listing, viewerProfile);
-        return map(listing, canViewContactInfo, canViewContactInfo);
+        return map(listing, canViewContactInfo, canViewContactInfo, viewerReplyStatus(listing, viewerProfile));
     }
 
     private User findUser(UUID userId) {
@@ -318,7 +334,22 @@ public class ListingService {
         );
     }
 
-    private ListingResponse map(Listing listing, boolean includeContactInfo, boolean contactVisibleForMe) {
+    /** Статус отклика текущего зрителя на этот листинг (null — не откликался или это владелец). */
+    private ListingReplyStatus viewerReplyStatus(Listing listing, Profile viewerProfile) {
+        if (viewerProfile == null || listing.getOwnerProfile().getId().equals(viewerProfile.getId())) {
+            return null;
+        }
+        return listingReplyRepository.findByListing_IdAndResponderProfile_Id(listing.getId(), viewerProfile.getId())
+                .map(reply -> reply.getStatus())
+                .orElse(null);
+    }
+
+    private ListingResponse map(
+            Listing listing,
+            boolean includeContactInfo,
+            boolean contactVisibleForMe,
+            ListingReplyStatus myReplyStatus
+    ) {
         return new ListingResponse(
                 listing.getId(),
                 listing.getOwnerProfile().getId(),
@@ -337,7 +368,8 @@ public class ListingService {
                 listing.getExpiresAt(),
                 listing.isManualCloseOnly(),
                 listing.getCreatedAt(),
-                listing.getUpdatedAt()
+                listing.getUpdatedAt(),
+                myReplyStatus
         );
     }
 }

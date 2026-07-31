@@ -65,9 +65,8 @@ public class ProfileService {
     public ProfileResponse getPublicProfile(UUID profileId) {
         Profile profile = profileRepository.findById(profileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile not found"));
-        if (!profile.isPublic()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile not found");
-        }
+        // Профиль публично открыт всегда: видимость в ленте регулируется отдельно
+        // (у consumer — флагом «в поиске», у provider — публикацией листингов).
         return mapProfile(profile);
     }
 
@@ -80,7 +79,7 @@ public class ProfileService {
 
     @Transactional(readOnly = true)
     public List<ProfileResponse> listPublicSearchingProfiles() {
-        return consumerDetailsRepository.findAllByProfile_IsPublicTrueAndIsLookingForTrueOrderByProfile_CreatedAtDesc()
+        return consumerDetailsRepository.findAllByIsLookingForTrueOrderByProfile_CreatedAtDesc()
                 .stream()
                 .map(ConsumerDetails::getProfile)
                 .map(this::mapProfile)
@@ -95,9 +94,6 @@ public class ProfileService {
         profile.setAvatarUrl(blankToNull(request.avatarUrl()));
         profile.setCity(blankToNull(request.city()));
         profile.setAbout(blankToNull(request.about()));
-        profile.setPublic(request.isPublic());
-        profile.setEmailPublic(request.isEmailPublic());
-        profile.setPhonePublic(request.isPhonePublic());
 
         Set<String> tags = request.sportsTags() == null ? Set.of() : request.sportsTags();
         profile.setSportsTags(new HashSet<>(tags));
@@ -405,9 +401,6 @@ public class ProfileService {
                 profile.getCity(),
                 profile.getAbout(),
                 Set.copyOf(profile.getSportsTags()),
-                profile.isPublic(),
-                profile.isEmailPublic(),
-                profile.isPhonePublic(),
                 getSearchingFlag(profile),
                 completion.status(),
                 completion.missingFields()
