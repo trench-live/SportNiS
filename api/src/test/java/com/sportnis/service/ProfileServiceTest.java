@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.times;
 
 import com.sportnis.api.profile.dto.ProfileResponse;
+import com.sportnis.entity.enums.ProfileCompletionStatus;
 import com.sportnis.api.profile.dto.ProfileSearchingUpdateRequest;
 import com.sportnis.api.profile.dto.ProfileUpdateRequest;
 import com.sportnis.entity.enums.OnboardingStep;
@@ -76,17 +77,51 @@ class ProfileServiceTest {
                 null,
                 null,
                 null,
-                Set.of("running"),
-                true,
-                false,
-                false
+                Set.of("running")
         );
 
         ProfileResponse response = profileService.updateMyProfile(userId, request);
 
         assertEquals("Alex Runner", response.displayName());
         assertEquals(OnboardingStep.PROFILE_BASICS_FILLED, profile.getOnboardingStep());
+        assertEquals(ProfileCompletionStatus.IN_PROGRESS, response.completionStatus());
+        assertTrue(response.missingFields().contains("about"));
         verify(userRepository, never()).save(user);
+    }
+
+    @Test
+    void updateMyProfileMarksProfileCompletedWhenRequiredFieldsAreFilled() {
+        UUID userId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+
+        User user = new User();
+        ReflectionTestUtils.setField(user, "id", userId);
+        user.setActiveProfileId(profileId);
+
+        Profile profile = new Profile();
+        ReflectionTestUtils.setField(profile, "id", profileId);
+        profile.setUser(user);
+        profile.setProfileType(ProfileType.CONSUMER);
+        profile.setDisplayName("New consumer");
+        profile.setSportsTags(Set.of());
+        profile.setOnboardingStep(OnboardingStep.REGISTERED);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(profileRepository.findByIdAndUser_Id(profileId, userId)).thenReturn(Optional.of(profile));
+        when(profileRepository.save(any(Profile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(consumerDetailsRepository.findById(profileId)).thenReturn(Optional.empty());
+
+        ProfileResponse response = profileService.updateMyProfile(userId, new ProfileUpdateRequest(
+                "Alex Runner",
+                null,
+                "Moscow",
+                "Runner profile",
+                Set.of("running")
+        ));
+
+        assertEquals(ProfileCompletionStatus.COMPLETED, response.completionStatus());
+        assertTrue(response.missingFields().isEmpty());
+        assertEquals(OnboardingStep.DONE, profile.getOnboardingStep());
     }
 
     @Test
@@ -130,10 +165,11 @@ class ProfileServiceTest {
         assertNull(response.city());
         assertNull(response.about());
         assertTrue(response.sportsTags().isEmpty());
-        assertTrue(response.isPublic());
-        assertEquals(false, response.isEmailPublic());
-        assertEquals(false, response.isPhonePublic());
         assertEquals(false, response.isLookingFor());
+        assertEquals(ProfileCompletionStatus.NOT_STARTED, response.completionStatus());
+        assertTrue(response.missingFields().contains("displayName"));
+        assertTrue(response.missingFields().contains("about"));
+        assertTrue(response.missingFields().contains("sportsTags"));
         assertEquals(OnboardingStep.REGISTERED, profile.getOnboardingStep());
 
         assertNull(details.getBirthYear());
@@ -162,13 +198,25 @@ class ProfileServiceTest {
     }
 
     @Test
-    void getPublicProfileThrowsNotFoundForPrivateProfile() {
+    void getPublicProfileReturnsProfileAlways() {
         UUID profileId = UUID.randomUUID();
         Profile profile = new Profile();
         ReflectionTestUtils.setField(profile, "id", profileId);
-        profile.setPublic(false);
+        profile.setUser(new User());
+        profile.setProfileType(ProfileType.PROVIDER);
+        profile.setDisplayName("Coach");
 
         when(profileRepository.findById(profileId)).thenReturn(Optional.of(profile));
+
+        ProfileResponse response = profileService.getPublicProfile(profileId);
+
+        assertEquals("Coach", response.displayName());
+    }
+
+    @Test
+    void getPublicProfileThrowsNotFoundWhenMissing() {
+        UUID profileId = UUID.randomUUID();
+        when(profileRepository.findById(profileId)).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 profileService.getPublicProfile(profileId));
@@ -196,7 +244,6 @@ class ProfileServiceTest {
         java.util.List<ProfileResponse> result = profileService.listPublicProfiles();
 
         assertEquals(2, result.size());
-        assertTrue(result.stream().allMatch(ProfileResponse::isPublic));
     }
 
     @Test
@@ -265,7 +312,7 @@ class ProfileServiceTest {
         details.setProfile(profile);
         details.setLookingFor(true);
 
-        when(consumerDetailsRepository.findAllByProfile_IsPublicTrueAndIsLookingForTrueOrderByProfile_CreatedAtDesc())
+        when(consumerDetailsRepository.findAllByIsLookingForTrueOrderByProfile_CreatedAtDesc())
                 .thenReturn(java.util.List.of(details));
         when(consumerDetailsRepository.findById(profile.getId())).thenReturn(Optional.of(details));
 
@@ -297,6 +344,31 @@ class ProfileServiceTest {
         ProfileResponse response = profileService.getMyProfile(userId);
 
         assertEquals(null, response.isLookingFor());
+    }
+
+    @Test
+    void getMyProfileReturnsNotStartedCompletionForFreshProfile() {
+        UUID userId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+
+        User user = new User();
+        ReflectionTestUtils.setField(user, "id", userId);
+        user.setActiveProfileId(profileId);
+
+        Profile profile = new Profile();
+        ReflectionTestUtils.setField(profile, "id", profileId);
+        profile.setUser(user);
+        profile.setProfileType(ProfileType.CONSUMER);
+        profile.setDisplayName("New consumer");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(profileRepository.findByIdAndUser_Id(profileId, userId)).thenReturn(Optional.of(profile));
+        when(consumerDetailsRepository.findById(profileId)).thenReturn(Optional.empty());
+
+        ProfileResponse response = profileService.getMyProfile(userId);
+
+        assertEquals(ProfileCompletionStatus.NOT_STARTED, response.completionStatus());
+        assertEquals(Set.of("displayName", "about", "sportsTags"), Set.copyOf(response.missingFields()));
     }
 
     @Test

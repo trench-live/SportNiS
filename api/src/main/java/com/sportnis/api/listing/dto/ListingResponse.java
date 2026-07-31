@@ -1,6 +1,7 @@
 package com.sportnis.api.listing.dto;
 
 import com.sportnis.entity.enums.ListingFormat;
+import com.sportnis.entity.enums.ListingReplyStatus;
 import com.sportnis.entity.enums.ListingStatus;
 import com.sportnis.entity.enums.ListingType;
 import java.math.BigDecimal;
@@ -26,6 +27,7 @@ public record ListingResponse(
         Instant expiresAt,
         boolean manualCloseOnly,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        ListingReplyStatus myReplyStatus
 ) {
 }

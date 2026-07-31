@@ -45,7 +45,6 @@ public class AuthService {
     public AuthResponse register(RegisterRequest request) {
         String normalizedEmail = normalizeEmail(request.email());
         String normalizedPhone = normalizePhone(request.phone());
-        String normalizedUsername = normalizeUsername(request.username());
 
         if (normalizedEmail != null && userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered");
@@ -53,14 +52,10 @@ public class AuthService {
         if (normalizedPhone != null && userRepository.existsByPhone(normalizedPhone)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Phone is already registered");
         }
-        if (userRepository.existsByUsernameIgnoreCase(normalizedUsername)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken");
-        }
 
         User user = new User();
         user.setEmail(normalizedEmail);
         user.setPhone(normalizedPhone);
-        user.setUsername(normalizedUsername);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setStatus(AccountStatus.ACTIVE);
         user.setOnboardingStep(OnboardingStep.REGISTERED);
@@ -165,10 +160,6 @@ public class AuthService {
             return null;
         }
         return phone.trim();
-    }
-
-    private String normalizeUsername(String username) {
-        return username.trim().toLowerCase(Locale.ROOT);
     }
 
     private String defaultDisplayName(ProfileType profileType) {

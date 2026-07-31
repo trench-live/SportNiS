@@ -2,6 +2,7 @@ package com.sportnis.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -44,12 +45,11 @@ class AuthServiceTest {
     private AuthService authService;
 
     @Test
-    void registerStoresUsernameAndCreatesDefaultProfile() {
+    void registerCreatesUserAndDefaultProfile() {
         UUID userId = UUID.randomUUID();
         UUID profileId = UUID.randomUUID();
 
         when(userRepository.existsByEmailIgnoreCase("user@example.com")).thenReturn(false);
-        when(userRepository.existsByUsernameIgnoreCase("alex.runner")).thenReturn(false);
         when(passwordEncoder.encode("Passw0rd!")).thenReturn("hash");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User user = invocation.getArgument(0);
@@ -71,7 +71,6 @@ class AuthServiceTest {
                 "User@Example.com",
                 null,
                 "Passw0rd!",
-                "Alex.Runner",
                 ProfileType.CONSUMER
         );
 
@@ -86,7 +85,7 @@ class AuthServiceTest {
         verify(userRepository, atLeastOnce()).save(userCaptor.capture());
         List<User> savedUsers = userCaptor.getAllValues();
         assertNotNull(savedUsers.get(0));
-        assertEquals("alex.runner", savedUsers.get(0).getUsername());
+        assertNull(savedUsers.get(0).getUsername());
         assertEquals(OnboardingStep.REGISTERED, savedUsers.get(0).getOnboardingStep());
 
         ArgumentCaptor<Profile> profileCaptor = ArgumentCaptor.forClass(Profile.class);

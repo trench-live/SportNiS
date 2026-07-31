@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ConsumerDetailsRepository extends JpaRepository<ConsumerDetails, UUID> {
 
-    List<ConsumerDetails> findAllByProfile_IsPublicTrueAndIsLookingForTrueOrderByProfile_CreatedAtDesc();
+    List<ConsumerDetails> findAllByIsLookingForTrueOrderByProfile_CreatedAtDesc();
 }
 

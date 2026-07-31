@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -116,6 +117,17 @@ public class ListingController {
         return listingReplyService.createMyReply(currentUserProvider.getCurrentUserId(), id, request);
     }
 
+    @DeleteMapping("/{id}/responses/me")
+    @Operation(
+            summary = "Отозвать свой отклик",
+            description = "Удаляет отклик активного профиля на листинг, освобождая возможность откликнуться заново. "
+                    + "Нельзя отозвать уже принятый отклик.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public void withdrawMyReply(@PathVariable UUID id) {
+        listingReplyService.withdrawMyReply(currentUserProvider.getCurrentUserId(), id);
+    }
+
     @GetMapping("/my/{id}/responses")
     @Operation(
             summary = "Отклики на мой листинг",
@@ -162,6 +174,16 @@ public class ListingController {
             @RequestParam(required = false) ListingType type
     ) {
         return listingService.listPublicListings(currentUserProvider.getCurrentUserIdOrNull(), type);
+    }
+
+    @GetMapping("/responses/my")
+    @Operation(
+            summary = "Мои отклики",
+            description = "Возвращает листинги, на которые откликнулся активный профиль, с его статусом отклика.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public List<ListingResponse> listMyReplies() {
+        return listingService.listMyReplies(currentUserProvider.getCurrentUserId());
     }
 
     @GetMapping("/{id}")
