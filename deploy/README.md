@@ -2,7 +2,7 @@
 
 CI/CD (GitHub Actions) на push в `develop`: собирает образы `sportnis-api` / `sportnis-web`,
 пушит в Docker Hub, по SSH разворачивает `docker-compose.prod.yml` на сервере
-(`~/sportnis`). Наружу торчит только контейнер `web` на `127.0.0.1:8082`; публично его
+(`~/sportnis`). Наружу торчит только контейнер `web` на `127.0.0.1:8090`; публично его
 отдаёт **хостовый nginx** (реверс-прокси + TLS), который уже слушает 80/443.
 
 ## GitHub Secrets (Settings → Secrets and variables → Actions)
@@ -21,7 +21,7 @@ server {
     server_name sportnis.ru;
 
     location / {
-        proxy_pass http://127.0.0.1:8082;
+        proxy_pass http://127.0.0.1:8090;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -47,7 +47,7 @@ certbot сам допишет 443, сертификат и редирект с h
 1. Добавить секреты (выше).
 2. Открыть проброс на хостовом nginx (server-блок + reload). DNS указать на сервер.
 3. Смёржить `feature/add-ci-cd` → `develop` → пайплайн соберёт и задеплоит.
-4. Проверить: `curl -I http://127.0.0.1:8082` на сервере (контейнер web), затем `http://sportnis.ru`.
+4. Проверить: `curl -I http://127.0.0.1:8090` на сервере (контейнер web), затем `http://sportnis.ru`.
 5. Выпустить сертификат (certbot).
 
 ## Заметки
