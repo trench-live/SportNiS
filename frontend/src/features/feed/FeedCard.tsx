@@ -19,6 +19,7 @@ export function FeedCard({ item }: { item: FeedItemResponse }) {
   return (
     <Link
       to={href}
+      state={{ from: "/feed" }}
       className="group block rounded-card border border-line bg-surface shadow-soft transition-[transform,box-shadow] duration-120 ease-metronome hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-line-strong"
     >
       <article className="flex gap-4 p-4">

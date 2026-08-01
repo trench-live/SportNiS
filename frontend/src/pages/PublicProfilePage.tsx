@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, useLocation, useNavigate, Link } from "react-router-dom";
 import { MapPin, Search } from "lucide-react";
 import { Container } from "@/components/layout/Container";
 import { Avatar, Badge, Card, ErrorState, Skeleton, EmptyState } from "@/components/ui";
@@ -9,8 +9,14 @@ import type { ListingResponse } from "@/lib/api/types";
 
 export function PublicProfilePage() {
   const { id = "" } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { data: profile, isLoading, isError, refetch } = usePublicProfile(id);
   const { data: allListings } = usePublicListings();
+
+  // Всегда браузерный «назад» — подпись «Назад», чтобы не врать на цепочках переходов.
+  const backLabel = "Назад";
+  const goBack = () => (location.key !== "default" ? navigate(-1) : navigate("/feed"));
 
   if (isLoading) {
     return (
@@ -25,9 +31,9 @@ export function PublicProfilePage() {
       <Container size="default" className="py-8">
         <ErrorState description="Профиль не найден или скрыт." onRetry={() => refetch()} />
         <p className="mt-4 text-center text-sm">
-          <Link to="/feed" className="text-accent hover:underline">
-            ← В ленту
-          </Link>
+          <button type="button" onClick={goBack} className="text-accent hover:underline">
+            ← {backLabel}
+          </button>
         </p>
       </Container>
     );
@@ -38,6 +44,10 @@ export function PublicProfilePage() {
 
   return (
     <Container size="default" className="py-8">
+      <button type="button" onClick={goBack} className="mb-4 text-sm text-ink-muted hover:text-ink">
+        ← {backLabel}
+      </button>
+
       <Card padded={false} className="overflow-hidden">
         <div className="h-24 bg-surface-alt" />
         <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-end sm:gap-5">

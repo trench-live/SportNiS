@@ -19,19 +19,8 @@ export function ListingDetailPage() {
   const navigate = useNavigate();
   const { data: listing, isLoading, isError, refetch } = useListing(id);
 
-  // Подпись кнопки — по тому, откуда пришли. С похожего листинга приходит /listings/:id → «Назад».
-  const from = (location.state as { from?: string } | null)?.from;
-  const backLabel =
-    from === "/listings/my"
-      ? "Мои объявления"
-      : from === "/replies/my"
-        ? "Мои отклики"
-        : from?.startsWith("/listings/")
-          ? "Назад"
-          : "Лента";
-
-  // Действие — всегда браузерный «назад»: сохраняет позицию ленты и вложенность переходов
-  // между похожими (лента → A → B → C разматывается по одному уровню). Прямой заход по ссылке → в ленту.
+  // Всегда браузерный «назад» — подпись «Назад», чтобы не врать на цепочках переходов.
+  const backLabel = "Назад";
   const canGoBack = location.key !== "default";
   function goBack() {
     if (canGoBack) navigate(-1);
