@@ -1,0 +1,24 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-images.yml
+    secrets:
+      DOCKER_HUB_LOGIN: ${{ secrets.DOCKER_HUB_LOGIN }}
+      DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+  deploy:
+    needs: build
+    # Хост/порт/путь/web-порт заданы дефолтами в deploy.yml — правь их там при необходимости.
+    uses: ./.github/workflows/deploy.yml
+    secrets:
+      DOCKER_HUB_LOGIN: ${{ secrets.DOCKER_HUB_LOGIN }}
+      DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      APP_JWT_SECRET: ${{ secrets.APP_JWT_SECRET }}
