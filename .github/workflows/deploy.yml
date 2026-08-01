@@ -18,7 +18,7 @@ on:
       web_port:
         type: string
         required: false
-        default: "8082"
+        default: "8090"
     secrets:
       DOCKER_HUB_LOGIN:
         required: true
@@ -78,7 +78,7 @@ jobs:
             POSTGRES_USER=postgres
             POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
             APP_JWT_SECRET=${APP_JWT_SECRET}
-            WEB_PORT=${WEB_PORT:-8082}
+            WEB_PORT=${WEB_PORT:-8090}
             EOF
 
             # Логин в Docker Hub (через sudo, т.к. docker под root).

@@ -40,7 +40,7 @@ services:
       - api
     # Только localhost: наружу отдаёт хостовый nginx (реверс-прокси + TLS).
     ports:
-      - "127.0.0.1:${WEB_PORT:-8082}:80"
+      - "127.0.0.1:${WEB_PORT:-8090}:80"
 
 volumes:
   sportnis-db-data:
