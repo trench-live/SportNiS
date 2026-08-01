@@ -23,3 +23,18 @@ export function PromoSlot({ className }: PromoSlotProps) {
     </div>
   );
 }
+
+/**
+ * Полноэкранный рекламный слот для тикток-режима: карточка на весь экран,
+ * обязательная пометка «Реклама», по сути картинка/креатив во всю площадь.
+ */
+export function FullscreenPromoSlot() {
+  return (
+    <div className="relative flex h-full snap-start snap-always items-center justify-center overflow-hidden bg-gradient-to-br from-surface-alt to-base">
+      <span className="absolute left-4 top-4 rounded-badge bg-surface/80 px-2.5 py-1 text-xs font-medium text-ink-muted">
+        Реклама
+      </span>
+      <span className="font-display text-lg font-medium text-ink-faint">Рекламный блок</span>
+    </div>
+  );
+}

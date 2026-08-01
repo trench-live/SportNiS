@@ -34,10 +34,11 @@ export function HomePage() {
             <SearchBar
               value={query}
               onChange={setQuery}
-              placeholder="Вид спорта: плавание, бокс, футбол…"
-              className="flex-1"
+              size="lg"
+              placeholder="Плавание, бокс, футбол…"
+              className="w-full sm:flex-1"
             />
-            <Button type="submit" size="lg" className="shrink-0">
+            <Button type="submit" size="lg" className="h-14 shrink-0 px-8">
               Найти
             </Button>
           </form>

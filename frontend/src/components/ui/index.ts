@@ -36,6 +36,8 @@ export { ConfirmDialog } from "./ConfirmDialog";
 export type { ConfirmDialogProps } from "./ConfirmDialog";
 export { Drawer } from "./Drawer";
 export type { DrawerProps } from "./Drawer";
+export { BottomSheet } from "./BottomSheet";
+export type { BottomSheetProps } from "./BottomSheet";
 export { Dropdown } from "./Dropdown";
 export type { DropdownProps, DropdownItem } from "./Dropdown";
 export { ToastProvider, useToast } from "./Toast";

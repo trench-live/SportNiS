@@ -132,6 +132,15 @@
   }
 }
 
+@keyframes sportnis-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 @utility animate-overlay {
   animation: sportnis-fade-in var(--duration-appear) var(--ease-metronome);
 }
@@ -142,6 +151,10 @@
 
 @utility animate-drawer {
   animation: sportnis-slide-in-right var(--duration-modal) var(--ease-metronome);
+}
+
+@utility animate-sheet {
+  animation: sportnis-slide-up var(--duration-modal) var(--ease-metronome);
 }
 
 @utility animate-pop {

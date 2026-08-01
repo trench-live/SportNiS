@@ -1,4 +1,4 @@
-import { useParams, useLocation, Link } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { MapPin, Calendar } from "lucide-react";
 import { Container } from "@/components/layout/Container";
 import { Badge, Skeleton, ErrorState, Divider } from "@/components/ui";
@@ -16,16 +16,27 @@ const STATUS_LABELS = {
 export function ListingDetailPage() {
   const { id = "" } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const { data: listing, isLoading, isError, refetch } = useListing(id);
 
-  // Кнопка возврата зависит от того, откуда пришли (лента vs мои объявления).
+  // Подпись кнопки — по тому, откуда пришли. С похожего листинга приходит /listings/:id → «Назад».
   const from = (location.state as { from?: string } | null)?.from;
-  const back =
+  const backLabel =
     from === "/listings/my"
-      ? { to: "/listings/my", label: "Мои объявления" }
+      ? "Мои объявления"
       : from === "/replies/my"
-        ? { to: "/replies/my", label: "Мои отклики" }
-        : { to: "/feed", label: "Лента" };
+        ? "Мои отклики"
+        : from?.startsWith("/listings/")
+          ? "Назад"
+          : "Лента";
+
+  // Действие — всегда браузерный «назад»: сохраняет позицию ленты и вложенность переходов
+  // между похожими (лента → A → B → C разматывается по одному уровню). Прямой заход по ссылке → в ленту.
+  const canGoBack = location.key !== "default";
+  function goBack() {
+    if (canGoBack) navigate(-1);
+    else navigate("/feed");
+  }
 
   if (isLoading) {
     return (
@@ -47,9 +58,9 @@ export function ListingDetailPage() {
       <Container size="default" className="py-8">
         <ErrorState description="Объявление не найдено или недоступно." onRetry={() => refetch()} />
         <p className="mt-4 text-center text-sm">
-          <Link to={back.to} className="text-accent hover:underline">
-            ← {back.label}
-          </Link>
+          <button type="button" onClick={goBack} className="text-accent hover:underline">
+            ← {backLabel}
+          </button>
         </p>
       </Container>
     );
@@ -61,20 +72,20 @@ export function ListingDetailPage() {
 
   return (
     <Container size="default" className="py-8">
-      <Link to={back.to} className="text-sm text-ink-muted hover:text-ink">
-        ← {back.label}
-      </Link>
+      <button type="button" onClick={goBack} className="text-sm text-ink-muted hover:text-ink">
+        ← {backLabel}
+      </button>
 
       <div className="mt-4 grid gap-8 lg:grid-cols-[1fr_320px]">
         {/* Основной блок */}
-        <div>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="accent">Предложение</Badge>
             {format && <Badge tone="outline">{format}</Badge>}
             {statusLabel && <Badge tone="warning">{statusLabel}</Badge>}
           </div>
 
-          <h1 className="mt-3 font-display text-2xl font-bold leading-tight text-ink sm:text-3xl">
+          <h1 className="mt-3 font-display text-2xl font-bold leading-tight text-ink break-words sm:text-3xl">
             {listing.title}
           </h1>
 
@@ -95,7 +106,7 @@ export function ListingDetailPage() {
 
           <Divider className="my-6" />
 
-          <div className="whitespace-pre-line text-[15px] leading-relaxed text-ink">
+          <div className="whitespace-pre-line break-words text-[15px] leading-relaxed text-ink">
             {listing.description}
           </div>
 
@@ -108,15 +119,16 @@ export function ListingDetailPage() {
               ))}
             </div>
           )}
-
-          <SimilarListings listing={listing} />
         </div>
 
-        {/* Правый липкий блок автора */}
-        <aside>
+        {/* Блок автора: на десктопе — липкий правый столбец, на мобиле — сразу после описания. */}
+        <aside className="min-w-0">
           <ContactCard listing={listing} />
         </aside>
       </div>
+
+      {/* Похожие — во всю ширину, после блока «Связаться». */}
+      <SimilarListings listing={listing} />
     </Container>
   );
 }

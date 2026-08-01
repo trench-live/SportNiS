@@ -19,18 +19,20 @@ export function SimilarListings({ listing }: { listing: ListingResponse }) {
       <h2 className="mb-4 font-display text-lg font-semibold text-ink">Похожие объявления</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {similar.map((l) => (
-          <SimilarItem key={l.id} listing={l} />
+          // from = текущий листинг → на детальной похожего кнопка возврата станет «Назад».
+          <SimilarItem key={l.id} listing={l} fromPath={`/listings/${listing.id}`} />
         ))}
       </div>
     </section>
   );
 }
 
-function SimilarItem({ listing }: { listing: ListingResponse }) {
+function SimilarItem({ listing, fromPath }: { listing: ListingResponse; fromPath: string }) {
   const price = formatPriceRange(listing.priceFrom, listing.priceTo, listing.currency);
   return (
     <Link
       to={`/listings/${listing.id}`}
+      state={{ from: fromPath }}
       className="flex flex-col gap-1 rounded-card border border-line bg-surface p-4 shadow-soft transition-[transform,box-shadow] duration-120 ease-metronome hover:-translate-y-0.5 hover:shadow-lift"
     >
       <h3 className="line-clamp-2 font-display text-sm font-semibold text-ink">{listing.title}</h3>
