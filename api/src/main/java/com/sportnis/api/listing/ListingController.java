@@ -104,6 +104,26 @@ public class ListingController {
         return listingService.closeMyListing(currentUserProvider.getCurrentUserId(), id);
     }
 
+    @PostMapping("/my/{id}/restore")
+    @Operation(
+            summary = "Вернуть мой листинг в ленту",
+            description = "Возвращает архивный или закрытый листинг в статус PUBLISHED.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ListingResponse restoreMyListing(@PathVariable UUID id) {
+        return listingService.restoreMyListing(currentUserProvider.getCurrentUserId(), id);
+    }
+
+    @DeleteMapping("/my/{id}")
+    @Operation(
+            summary = "Удалить мой листинг",
+            description = "Безвозвратно удаляет листинг владельца вместе с тегами и откликами.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public void deleteMyListing(@PathVariable UUID id) {
+        listingService.deleteMyListing(currentUserProvider.getCurrentUserId(), id);
+    }
+
     @PostMapping("/{id}/responses")
     @Operation(
             summary = "Откликнуться на листинг",

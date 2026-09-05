@@ -54,7 +54,7 @@ public class ListingService {
 
         validateCreateTypeByProfile(ownerProfile, request.type());
         validateNoDuplicateActiveOffer(ownerProfile, request.type(), normalizedTitle, normalizedDescription);
-        validateExpiresAt(request.manualCloseOnly(), request.expiresAt());
+        validateExpiresAt(request.manualCloseOnly(), request.expiresAt(), true);
 
         Listing listing = new Listing();
         listing.setOwnerProfile(ownerProfile);
@@ -100,15 +100,17 @@ public class ListingService {
         Profile ownerProfile = findActiveProfile(userId);
         Listing listing = listingRepository.findByIdAndOwnerProfile_Id(listingId, ownerProfile.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
-        if (listing.getStatus() != ListingStatus.PUBLISHED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only PUBLISHED listing can be updated");
-        }
 
         String normalizedTitle = request.title().trim();
         String normalizedDescription = request.description().trim();
 
-        validateNoDuplicateActiveOfferForUpdate(ownerProfile, listing, normalizedTitle, normalizedDescription);
-        validateExpiresAt(request.manualCloseOnly(), request.expiresAt());
+        boolean published = listing.getStatus() == ListingStatus.PUBLISHED;
+        // Дубликаты и «срок в будущем» проверяем только для активного (PUBLISHED) листинга:
+        // архивный/закрытый в ленте не участвует, а его срок станет актуальным лишь при возврате.
+        if (published) {
+            validateNoDuplicateActiveOfferForUpdate(ownerProfile, listing, normalizedTitle, normalizedDescription);
+        }
+        validateExpiresAt(request.manualCloseOnly(), request.expiresAt(), published);
 
         listing.setTitle(normalizedTitle);
         listing.setDescription(normalizedDescription);
@@ -147,6 +149,39 @@ public class ListingService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
         listing.setStatus(ListingStatus.CLOSED);
         return map(listingRepository.save(listing), true, true, null);
+    }
+
+    /** Возврат из архива/из закрытых обратно в ленту (→ PUBLISHED). */
+    @Transactional
+    public ListingResponse restoreMyListing(UUID userId, UUID listingId) {
+        closeExpiredListings();
+        Profile ownerProfile = findActiveProfile(userId);
+        Listing listing = listingRepository.findByIdAndOwnerProfile_Id(listingId, ownerProfile.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
+        if (listing.getStatus() == ListingStatus.PUBLISHED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Listing is already published");
+        }
+        // Истёкший срок не должен тут же снова закрыть листинг — просим сначала обновить срок.
+        if (!listing.isManualCloseOnly()
+                && listing.getExpiresAt() != null
+                && !listing.getExpiresAt().isAfter(Instant.now())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Listing expired: set a future expiry or enable manual close before restoring"
+            );
+        }
+        validateNoDuplicateActiveOfferForUpdate(ownerProfile, listing, listing.getTitle(), listing.getDescription());
+        listing.setStatus(ListingStatus.PUBLISHED);
+        return map(listingRepository.save(listing), true, true, null);
+    }
+
+    /** Безвозвратно удаляет мой листинг вместе с тегами и откликами (FK ON DELETE CASCADE). */
+    @Transactional
+    public void deleteMyListing(UUID userId, UUID listingId) {
+        Profile ownerProfile = findActiveProfile(userId);
+        Listing listing = listingRepository.findByIdAndOwnerProfile_Id(listingId, ownerProfile.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
+        listingRepository.delete(listing);
     }
 
     @Transactional
@@ -231,14 +266,14 @@ public class ListingService {
         return firstProfile;
     }
 
-    private void validateExpiresAt(Boolean manualCloseOnly, Instant expiresAt) {
+    private void validateExpiresAt(Boolean manualCloseOnly, Instant expiresAt, boolean enforceFuture) {
         if (Boolean.TRUE.equals(manualCloseOnly)) {
             if (expiresAt != null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "expiresAt must be null when manualCloseOnly=true");
             }
             return;
         }
-        if (expiresAt != null && !expiresAt.isAfter(Instant.now())) {
+        if (enforceFuture && expiresAt != null && !expiresAt.isAfter(Instant.now())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "expiresAt must be in the future");
         }
     }

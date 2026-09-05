@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, MoreVertical, Pencil, Archive, XCircle } from "lucide-react";
+import { MessageSquare, MoreVertical, Pencil, Archive, XCircle, RotateCcw, Trash2 } from "lucide-react";
 import {
   Badge,
   Button,
@@ -10,10 +10,19 @@ import {
   IconButton,
   useToast,
 } from "@/components/ui";
+import { ApiError } from "@/lib/api/client";
 import { formatListingFormat, formatPriceRange } from "@/lib/format";
-import { useArchiveListing, useCloseListing, useListingResponses } from "./myQueries";
+import {
+  useArchiveListing,
+  useCloseListing,
+  useDeleteListing,
+  useListingResponses,
+  useRestoreListing,
+} from "./myQueries";
 import { ResponsesDrawer } from "./ResponsesDrawer";
 import type { ListingResponse, ListingStatus } from "@/lib/api/types";
+
+type ConfirmKind = "archive" | "close" | "delete";
 
 const STATUS: Record<ListingStatus, { label: string; tone: "success" | "neutral" | "warning" }> = {
   PUBLISHED: { label: "Опубликовано", tone: "success" },
@@ -26,8 +35,10 @@ export function MyListingCard({ listing }: { listing: ListingResponse }) {
   const { toast } = useToast();
   const archive = useArchiveListing();
   const close = useCloseListing();
+  const restore = useRestoreListing();
+  const remove = useDeleteListing();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [confirm, setConfirm] = useState<null | "archive" | "close">(null);
+  const [confirm, setConfirm] = useState<null | ConfirmKind>(null);
 
   // Отклики — единственная доступная метрика.
   const { data: responses } = useListingResponses(listing.id, true);
@@ -38,6 +49,20 @@ export function MyListingCard({ listing }: { listing: ListingResponse }) {
   const price = formatPriceRange(listing.priceFrom, listing.priceTo, listing.currency);
   const format = formatListingFormat(listing.format);
   const isActive = listing.status === "PUBLISHED";
+
+  function onRestore() {
+    restore.mutate(listing.id, {
+      onSuccess: () => toast({ message: "Объявление снова в ленте", tone: "success" }),
+      onError: (err) =>
+        toast({
+          message:
+            err instanceof ApiError && err.status === 409
+              ? "Срок объявления истёк — задайте новый срок или ручное закрытие, затем верните."
+              : "Не удалось вернуть объявление",
+          tone: "error",
+        }),
+    });
+  }
 
   return (
     <Card>
@@ -79,7 +104,16 @@ export function MyListingCard({ listing }: { listing: ListingResponse }) {
                     onSelect: () => setConfirm("close"),
                   },
                 ]
-              : []),
+              : [
+                  { key: "restore", label: "Вернуть в ленту", icon: <RotateCcw />, onSelect: onRestore },
+                  {
+                    key: "delete",
+                    label: "Удалить",
+                    icon: <Trash2 />,
+                    destructive: true,
+                    onSelect: () => setConfirm("delete"),
+                  },
+                ]),
           ]}
         />
       </div>
@@ -94,13 +128,15 @@ export function MyListingCard({ listing }: { listing: ListingResponse }) {
           Отклики: {responseCount}
           {newCount > 0 && <Badge tone="accent">{newCount} новых</Badge>}
         </button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => navigate(`/listings/${listing.id}`, { state: { from: "/listings/my" } })}
-        >
-          Открыть
-        </Button>
+        {isActive && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => navigate(`/listings/${listing.id}`, { state: { from: "/listings/my" } })}
+          >
+            Открыть
+          </Button>
+        )}
       </div>
 
       <ResponsesDrawer
@@ -114,24 +150,40 @@ export function MyListingCard({ listing }: { listing: ListingResponse }) {
         open={confirm !== null}
         onClose={() => setConfirm(null)}
         onConfirm={() => {
-          const action = confirm === "archive" ? archive : close;
-          const label = confirm === "archive" ? "перенесено в архив" : "закрыто";
-          action.mutate(listing.id, {
+          if (!confirm) return;
+          const mutation = confirm === "archive" ? archive : confirm === "close" ? close : remove;
+          const doneMessage =
+            confirm === "archive"
+              ? "Объявление перенесено в архив"
+              : confirm === "close"
+                ? "Объявление закрыто"
+                : "Объявление удалено";
+          mutation.mutate(listing.id, {
             onSuccess: () => {
-              toast({ message: `Объявление ${label}` });
+              toast({ message: doneMessage });
               setConfirm(null);
             },
           });
         }}
-        loading={archive.isPending || close.isPending}
-        destructive={confirm === "close"}
-        title={confirm === "archive" ? "В архив?" : "Закрыть объявление?"}
+        loading={archive.isPending || close.isPending || remove.isPending}
+        destructive={confirm === "close" || confirm === "delete"}
+        title={
+          confirm === "archive"
+            ? "В архив?"
+            : confirm === "close"
+              ? "Закрыть объявление?"
+              : "Удалить объявление?"
+        }
         description={
           confirm === "archive"
             ? "Объявление скроется из ленты. Его можно будет вернуть позже."
-            : "Объявление закроется. История откликов сохранится, но новых не будет."
+            : confirm === "close"
+              ? "Объявление закроется. История откликов сохранится, но новых не будет."
+              : "Объявление и все его отклики будут удалены безвозвратно."
         }
-        confirmLabel={confirm === "archive" ? "В архив" : "Закрыть"}
+        confirmLabel={
+          confirm === "archive" ? "В архив" : confirm === "close" ? "Закрыть" : "Удалить"
+        }
       />
     </Card>
   );

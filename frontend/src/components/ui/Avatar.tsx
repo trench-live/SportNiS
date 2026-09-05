@@ -25,8 +25,10 @@ function initials(name?: string | null): string {
 }
 
 export function Avatar({ src, name, size = "md", className }: AvatarProps) {
-  const [failed, setFailed] = useState(false);
-  const showImage = src && !failed;
+  // Запоминаем именно тот src, что не загрузился — при смене картинки пробуем заново
+  // (иначе после замены фото навсегда показывались бы инициалы).
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const showImage = src && failedSrc !== src;
 
   return (
     <span
@@ -41,7 +43,7 @@ export function Avatar({ src, name, size = "md", className }: AvatarProps) {
           src={src}
           alt={name ?? ""}
           className="size-full object-cover"
-          onError={() => setFailed(true)}
+          onError={() => setFailedSrc(src)}
         />
       ) : (
         <span aria-hidden>{initials(name)}</span>

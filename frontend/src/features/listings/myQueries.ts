@@ -80,6 +80,19 @@ export function useCloseListing() {
   return useListingAction((id) => `/api/v1/listings/my/${id}/close`);
 }
 
+export function useRestoreListing() {
+  return useListingAction((id) => `/api/v1/listings/my/${id}/restore`);
+}
+
+export function useDeleteListing() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiRequest<void>(`/api/v1/listings/my/${id}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: myListingKeys.all }),
+  });
+}
+
 export function useRespondDecision(listingId: string) {
   const queryClient = useQueryClient();
   return useMutation({
