@@ -1,2 +1,0 @@
-ALTER TABLE profiles
-    ADD COLUMN is_looking_for BOOLEAN NOT NULL DEFAULT FALSE;
