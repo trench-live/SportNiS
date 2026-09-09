@@ -5,7 +5,7 @@ import com.sportnis.api.auth.dto.AuthResponse;
 import com.sportnis.api.auth.dto.LoginRequest;
 import com.sportnis.api.auth.dto.RegisterRequest;
 import com.sportnis.entity.enums.AccountStatus;
-import com.sportnis.entity.enums.MarketSide;
+import com.sportnis.entity.enums.OnboardingStep;
 import com.sportnis.entity.enums.ProfileType;
 import com.sportnis.entity.profile.Profile;
 import com.sportnis.entity.user.User;
@@ -58,17 +58,20 @@ public class AuthService {
         user.setPhone(normalizedPhone);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setStatus(AccountStatus.ACTIVE);
+        user.setOnboardingStep(OnboardingStep.REGISTERED);
         user = userRepository.save(user);
 
         Profile profile = new Profile();
         profile.setUser(user);
         profile.setProfileType(request.profileType());
-        profile.setMarketSide(resolveMarketSide(request.profileType()));
-        profile.setDisplayName(request.displayName().trim());
+        profile.setDisplayName(defaultDisplayName(request.profileType()));
+        profile.setOnboardingStep(OnboardingStep.REGISTERED);
         profile = profileRepository.save(profile);
+        user.setActiveProfileId(profile.getId());
+        userRepository.save(user);
 
         String token = jwtService.generateToken(user.getId());
-        return new AuthResponse(token, user.getId(), profile.getId(), profile.getProfileType(), profile.getMarketSide());
+        return new AuthResponse(token, user.getId(), profile.getId(), profile.getProfileType());
     }
 
     @Transactional
@@ -87,31 +90,53 @@ public class AuthService {
         user.setLastLoginAt(Instant.now());
         userRepository.save(user);
 
-        Profile profile = profileRepository.findByUser_Id(user.getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile not found"));
+        Profile profile = resolveActiveProfile(user);
 
         String token = jwtService.generateToken(user.getId());
-        return new AuthResponse(token, user.getId(), profile.getId(), profile.getProfileType(), profile.getMarketSide());
+        return new AuthResponse(token, user.getId(), profile.getId(), profile.getProfileType());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthMeResponse me(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        Profile profile = profileRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile not found"));
+        Profile profile = resolveActiveProfile(user);
 
         return new AuthMeResponse(
                 user.getId(),
+                user.getUsername(),
                 user.getEmail(),
                 user.getPhone(),
                 user.getStatus(),
                 user.getSystemRole(),
+                profile.getOnboardingStep(),
                 profile.getId(),
-                profile.getProfileType(),
-                profile.getMarketSide()
+                profile.getProfileType()
         );
+    }
+
+    @Transactional
+    public void deleteMe(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        userRepository.delete(user);
+    }
+
+    private Profile resolveActiveProfile(User user) {
+        if (user.getActiveProfileId() != null) {
+            return profileRepository.findByIdAndUser_Id(user.getActiveProfileId(), user.getId())
+                    .orElseGet(() -> assignFirstProfileAsActive(user));
+        }
+        return assignFirstProfileAsActive(user);
+    }
+
+    private Profile assignFirstProfileAsActive(User user) {
+        Profile firstProfile = profileRepository.findFirstByUser_IdOrderByCreatedAtAsc(user.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile not found"));
+        user.setActiveProfileId(firstProfile.getId());
+        userRepository.save(user);
+        return firstProfile;
     }
 
     private User findUserByCredentials(String email, String phone) {
@@ -121,13 +146,6 @@ public class AuthService {
         }
         return userRepository.findByPhone(phone)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
-    }
-
-    private MarketSide resolveMarketSide(ProfileType profileType) {
-        return switch (profileType) {
-            case ATHLETE -> MarketSide.CONSUMER;
-            case COACH, ORGANIZATION -> MarketSide.PROVIDER;
-        };
     }
 
     private String normalizeEmail(String email) {
@@ -143,5 +161,8 @@ public class AuthService {
         }
         return phone.trim();
     }
-}
 
+    private String defaultDisplayName(ProfileType profileType) {
+        return profileType == ProfileType.PROVIDER ? "New provider" : "New consumer";
+    }
+}
