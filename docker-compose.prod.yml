@@ -1,0 +1,46 @@
+# Прод-стек sportnis. Разворачивается на сервере деплой-workflow'ом.
+# Наружу публикуется только web (nginx); api и db — внутри сети compose.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sportnis_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sportnis
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - sportnis-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d sportnis"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: ${DOCKERHUB_USER}/sportnis-api:${IMAGE_TAG:-latest}
+    container_name: sportnis_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/sportnis
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      APP_JWT_SECRET: ${APP_JWT_SECRET}
+      APP_JWT_EXPIRATION_SECONDS: ${APP_JWT_EXPIRATION_SECONDS:-2592000}
+      JAVA_OPTS: ${JAVA_OPTS:-}
+
+  web:
+    image: ${DOCKERHUB_USER}/sportnis-web:${IMAGE_TAG:-latest}
+    container_name: sportnis_web
+    restart: unless-stopped
+    depends_on:
+      - api
+    # Только localhost: наружу отдаёт хостовый nginx (реверс-прокси + TLS).
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8090}:80"
+
+volumes:
+  sportnis-db-data:

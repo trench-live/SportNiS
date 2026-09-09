@@ -9,6 +9,7 @@ CREATE TABLE users
     status        VARCHAR(32)  NOT NULL,
     system_role   VARCHAR(32)  NOT NULL,
     last_login_at TIMESTAMPTZ,
+    active_profile_id UUID,
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_users_status
@@ -22,8 +23,7 @@ CREATE TABLE users
 CREATE TABLE profiles
 (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id          UUID         NOT NULL UNIQUE REFERENCES users (id) ON DELETE CASCADE,
-    market_side      VARCHAR(32)  NOT NULL,
+    user_id          UUID         NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     profile_type     VARCHAR(32)  NOT NULL,
     display_name     VARCHAR(255) NOT NULL,
     avatar_url       TEXT,
@@ -34,16 +34,11 @@ CREATE TABLE profiles
     is_phone_public  BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    CONSTRAINT chk_profiles_market_side
-        CHECK (market_side IN ('CONSUMER', 'PROVIDER')),
     CONSTRAINT chk_profiles_type
-        CHECK (profile_type IN ('ATHLETE', 'COACH', 'ORGANIZATION')),
-    CONSTRAINT chk_profiles_type_side
-        CHECK (
-            (profile_type = 'ATHLETE' AND market_side = 'CONSUMER') OR
-            (profile_type IN ('COACH', 'ORGANIZATION') AND market_side = 'PROVIDER')
-            )
+        CHECK (profile_type IN ('CONSUMER', 'PROVIDER'))
 );
+
+CREATE INDEX idx_profiles_user_id ON profiles (user_id);
 
 CREATE TABLE profile_sports
 (
@@ -52,43 +47,87 @@ CREATE TABLE profile_sports
     PRIMARY KEY (profile_id, sport)
 );
 
-CREATE TABLE athlete_profile_details
+CREATE TABLE consumer_details
 (
-    profile_id               UUID PRIMARY KEY REFERENCES profiles (id) ON DELETE CASCADE,
-    birth_year               INTEGER,
-    experience_years         INTEGER,
-    sport_rank               VARCHAR(120),
-    competitive_achievements TEXT,
-    sports_goals             TEXT,
-    resume_markdown          TEXT
+    profile_id       UUID PRIMARY KEY REFERENCES profiles (id) ON DELETE CASCADE,
+    birth_year       INTEGER,
+    experience_level VARCHAR(120),
+    goals            TEXT,
+    preferences      TEXT
 );
 
-CREATE TABLE coach_profile_details
+CREATE TABLE provider_details
 (
-    profile_id        UUID PRIMARY KEY REFERENCES profiles (id) ON DELETE CASCADE,
-    education         TEXT,
-    certificates      TEXT,
-    experience_years  INTEGER,
-    training_format   VARCHAR(120),
-    price_from        NUMERIC(12, 2),
-    price_currency    VARCHAR(3),
-    price_notes       TEXT
+    profile_id         UUID PRIMARY KEY REFERENCES profiles (id) ON DELETE CASCADE,
+    experience_years   INTEGER,
+    qualifications     TEXT,
+    training_format    VARCHAR(120),
+    price_from         NUMERIC(12, 2),
+    price_currency     VARCHAR(3),
+    service_conditions TEXT
 );
 
-CREATE TABLE coach_specializations
-(
-    profile_id      UUID         NOT NULL REFERENCES coach_profile_details (profile_id) ON DELETE CASCADE,
-    specialization  VARCHAR(120) NOT NULL,
-    PRIMARY KEY (profile_id, specialization)
-);
+CREATE OR REPLACE FUNCTION ensure_consumer_profile_type()
+    RETURNS TRIGGER AS
+$$
+BEGIN
+    IF (SELECT profile_type FROM profiles WHERE id = NEW.profile_id) <> 'CONSUMER' THEN
+        RAISE EXCEPTION 'consumer_details can only reference CONSUMER profile';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE TABLE organization_profile_details
-(
-    profile_id            UUID PRIMARY KEY REFERENCES profiles (id) ON DELETE CASCADE,
-    organization_type     VARCHAR(120),
-    legal_name            VARCHAR(255),
-    address               VARCHAR(500),
-    working_hours         TEXT,
-    facility_description  TEXT,
-    website               VARCHAR(500)
-);
+CREATE OR REPLACE FUNCTION ensure_provider_profile_type()
+    RETURNS TRIGGER AS
+$$
+BEGIN
+    IF (SELECT profile_type FROM profiles WHERE id = NEW.profile_id) <> 'PROVIDER' THEN
+        RAISE EXCEPTION 'provider_details can only reference PROVIDER profile';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_consumer_details_profile_type
+    BEFORE INSERT OR UPDATE
+    ON consumer_details
+    FOR EACH ROW
+EXECUTE FUNCTION ensure_consumer_profile_type();
+
+CREATE TRIGGER trg_provider_details_profile_type
+    BEFORE INSERT OR UPDATE
+    ON provider_details
+    FOR EACH ROW
+EXECUTE FUNCTION ensure_provider_profile_type();
+
+ALTER TABLE users
+    ADD CONSTRAINT fk_users_active_profile
+        FOREIGN KEY (active_profile_id) REFERENCES profiles (id) ON DELETE SET NULL;
+
+CREATE OR REPLACE FUNCTION ensure_active_profile_belongs_to_user()
+    RETURNS TRIGGER AS
+$$
+BEGIN
+    IF NEW.active_profile_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM profiles p
+        WHERE p.id = NEW.active_profile_id
+          AND p.user_id = NEW.id
+    ) THEN
+        RAISE EXCEPTION 'active_profile_id must belong to the same user';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_users_active_profile_owner
+    BEFORE INSERT OR UPDATE OF active_profile_id, id
+    ON users
+    FOR EACH ROW
+EXECUTE FUNCTION ensure_active_profile_belongs_to_user();
