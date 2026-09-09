@@ -26,11 +26,8 @@ api/.mvn/wrapper/maven-wrapper.jar
 out/
 build/
 
-# Working docs / notes (not committed)
+# Other
 MVP_SportNis.md
-sportnis-frontend-spec.md
-PROFILE_FIELDS_FOR_TEAM.txt
-docs/*.md
 
 # Frontend
 frontend/node_modules/
@@ -43,3 +40,4 @@ frontend/.cache/
 # Coverage
 coverage/
 *.lcov
+

@@ -18,8 +18,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "consumer_details")
-public class ConsumerDetails {
+@Table(name = "athlete_profile_details")
+public class AthleteProfileDetails {
 
     @Id
     @Column(name = "profile_id", nullable = false)
@@ -33,16 +33,20 @@ public class ConsumerDetails {
     @Column(name = "birth_year")
     private Integer birthYear;
 
-    @Column(name = "experience_level", length = 120)
-    private String experienceLevel;
+    @Column(name = "experience_years")
+    private Integer experienceYears;
 
-    @Column(name = "goals")
-    private String goals;
+    @Column(name = "sport_rank", length = 120)
+    private String sportRank;
 
-    @Column(name = "preferences")
-    private String preferences;
+    @Column(name = "competitive_achievements")
+    private String competitiveAchievements;
 
-    @Column(name = "is_looking_for", nullable = false)
-    private boolean isLookingFor = false;
+    @Column(name = "sports_goals")
+    private String sportsGoals;
+
+    @Column(name = "resume_markdown")
+    private String resumeMarkdown;
 }
+
 
