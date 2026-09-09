@@ -41,6 +41,8 @@ export function PublicProfilePage() {
 
   const isProvider = profile.profileType === "PROVIDER";
   const listings = (allListings ?? []).filter((l) => l.ownerProfileId === profile.id);
+  const hasAbout = Boolean(profile.about);
+  const hasSports = profile.sportsTags.length > 0;
 
   return (
     <Container size="default" className="py-8">
@@ -79,32 +81,32 @@ export function PublicProfilePage() {
         </div>
       </Card>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_2fr]">
-        <div className="flex flex-col gap-4">
-          {profile.about && (
-            <Card>
-              <h2 className="mb-2 font-display text-sm font-semibold text-ink">О себе</h2>
-              <p className="whitespace-pre-line text-sm leading-relaxed text-ink-muted">{profile.about}</p>
-            </Card>
-          )}
-          {profile.sportsTags.length > 0 && (
-            <Card>
-              <h2 className="mb-2 font-display text-sm font-semibold text-ink">Виды спорта</h2>
-              <div className="flex flex-wrap gap-1.5">
-                {profile.sportsTags.map((tag) => (
-                  <span key={tag} className="rounded-badge bg-surface-alt px-2.5 py-1 text-sm text-ink-muted">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </Card>
-          )}
-        </div>
+      {isProvider ? (
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_2fr]">
+          <div className="flex flex-col gap-4">
+            {profile.about && (
+              <Card>
+                <h2 className="mb-2 font-display text-sm font-semibold text-ink">О себе</h2>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-ink-muted">{profile.about}</p>
+              </Card>
+            )}
+            {profile.sportsTags.length > 0 && (
+              <Card>
+                <h2 className="mb-2 font-display text-sm font-semibold text-ink">Виды спорта</h2>
+                <div className="flex flex-wrap gap-1.5">
+                  {profile.sportsTags.map((tag) => (
+                    <span key={tag} className="rounded-badge bg-surface-alt px-2.5 py-1 text-sm text-ink-muted">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </Card>
+            )}
+          </div>
 
-        <div>
-          <h2 className="mb-3 font-display text-lg font-semibold text-ink">Объявления</h2>
-          {isProvider ? (
-            listings.length > 0 ? (
+          <div>
+            <h2 className="mb-3 font-display text-lg font-semibold text-ink">Объявления</h2>
+            {listings.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {listings.map((l) => (
                   <ListingTile key={l.id} listing={l} />
@@ -112,14 +114,38 @@ export function PublicProfilePage() {
               </div>
             ) : (
               <EmptyState title="Нет активных объявлений" />
-            )
-          ) : (
-            <p className="text-sm text-ink-muted">
-              Этот профиль ищет услугу и не размещает объявлений.
-            </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        // Consumer не размещает объявлений — «О себе» и «Виды спорта» и есть его профиль.
+        <div className={`mt-6 grid gap-4 ${hasAbout && hasSports ? "md:grid-cols-2" : ""}`}>
+          {hasAbout && (
+            <Card>
+              <h2 className="mb-2 font-display text-base font-semibold text-ink">О себе</h2>
+              <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink">{profile.about}</p>
+            </Card>
+          )}
+          {hasSports && (
+            <Card>
+              <h2 className="mb-3 font-display text-base font-semibold text-ink">Виды спорта</h2>
+              <div className="flex flex-wrap gap-2">
+                {profile.sportsTags.map((tag) => (
+                  <span key={tag} className="rounded-badge bg-surface-alt px-3 py-1.5 text-sm text-ink">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </Card>
+          )}
+          {!hasAbout && !hasSports && (
+            <EmptyState
+              title="Профиль пока пустой"
+              description="Пользователь ещё не рассказал о себе."
+            />
           )}
         </div>
-      </div>
+      )}
     </Container>
   );
 }

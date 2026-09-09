@@ -6,6 +6,7 @@ import { FeedPage } from "@/pages/FeedPage";
 import { ListingDetailPage } from "@/pages/ListingDetailPage";
 import { PublicProfilePage } from "@/pages/PublicProfilePage";
 import { AccountPage } from "@/pages/AccountPage";
+import { AccountEditPage } from "@/pages/AccountEditPage";
 import { MyListingsPage } from "@/pages/MyListingsPage";
 import { MyRepliesPage } from "@/pages/MyRepliesPage";
 import { ListingFormPage } from "@/pages/ListingFormPage";
@@ -26,6 +27,7 @@ export function AppRouter() {
 
         <Route element={<ProtectedRoute />}>
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/account/edit" element={<AccountEditPage />} />
           <Route path="/listings/my" element={<MyListingsPage />} />
           <Route path="/replies/my" element={<MyRepliesPage />} />
           <Route path="/listings/new" element={<ListingFormPage mode="create" />} />

@@ -15,7 +15,13 @@ function toForm(profile: ProfileResponse) {
   };
 }
 
-export function ProfileEditForm({ profile }: { profile: ProfileResponse }) {
+export function ProfileEditForm({
+  profile,
+  onSaved,
+}: {
+  profile: ProfileResponse;
+  onSaved?: () => void;
+}) {
   const [form, setForm] = useState(() => toForm(profile));
   const update = useUpdateProfile();
   const { toast } = useToast();
@@ -42,7 +48,12 @@ export function ProfileEditForm({ profile }: { profile: ProfileResponse }) {
           .map((t) => t.trim())
           .filter(Boolean),
       },
-      { onSuccess: () => toast({ message: "Профиль сохранён", tone: "success" }) },
+      {
+        onSuccess: () => {
+          toast({ message: "Профиль сохранён", tone: "success" });
+          onSaved?.();
+        },
+      },
     );
   }
 

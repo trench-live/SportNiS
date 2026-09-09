@@ -1,24 +1,16 @@
-import { Link } from "react-router-dom";
-import { CheckCircle2, Search } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { CheckCircle2, MapPin, Pencil, Search } from "lucide-react";
 import { Container } from "@/components/layout/Container";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { Badge, Button, Card, Spinner, useToast } from "@/components/ui";
+import { Avatar, Badge, Button, Card, Spinner, useToast } from "@/components/ui";
+import { PROFILE_TYPE_LABELS } from "@/lib/format";
 import { useSession } from "@/features/auth/queries";
 import { useSearchingToggle } from "@/features/profile/mutations";
-import { ProfileEditForm } from "@/features/profile/ProfileEditForm";
 import { ProfileSwitcher } from "@/features/profile/ProfileSwitcher";
 import { DangerZone } from "@/features/profile/DangerZone";
 
-const FIELD_LABELS: Record<string, string> = {
-  displayName: "Имя",
-  about: "О себе",
-  sportsTags: "Виды спорта",
-  avatarUrl: "Аватар",
-  city: "Город",
-};
-
 export function AccountPage() {
   const session = useSession();
+  const navigate = useNavigate();
   const searching = useSearchingToggle();
   const { toast } = useToast();
   const profile = session.profile;
@@ -32,42 +24,104 @@ export function AccountPage() {
   }
 
   const isConsumer = profile.profileType === "CONSUMER";
+  const isProvider = profile.profileType === "PROVIDER";
   const isComplete = profile.completionStatus === "COMPLETED";
+  const email = session.authMe?.email ?? session.authMe?.phone ?? undefined;
 
   return (
     <Container size="default" className="py-8">
-      <PageHeader
-        title="Настройки аккаунта"
-        description={session.authMe?.email ?? session.authMe?.phone ?? undefined}
-        action={
-          <Link
-            to={`/users/${profile.id}`}
-            className="inline-flex h-9 items-center rounded-control border border-line-strong bg-surface px-3 text-sm font-medium text-ink transition-colors duration-120 ease-metronome hover:bg-surface-alt"
-          >
-            Открыть публичный профиль
-          </Link>
-        }
-      />
+      {/* Шапка профиля — как её видят другие, но с кнопкой редактирования. */}
+      <Card padded={false} className="overflow-hidden">
+        <div className="h-24 bg-surface-alt" />
+        <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-end sm:gap-5">
+          <Avatar
+            src={profile.avatarUrl}
+            name={profile.displayName}
+            size="xl"
+            className="-mt-16 border-4 border-surface"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="font-display text-2xl font-bold text-ink">
+                {profile.displayName || "Ваш профиль"}
+              </h1>
+              <Badge tone={isProvider ? "accent" : "neutral"}>
+                {PROFILE_TYPE_LABELS[profile.profileType]}
+              </Badge>
+              {profile.isLookingFor && (
+                <Badge tone="success" leftIcon={<Search />}>
+                  В поиске
+                </Badge>
+              )}
+            </div>
+            {profile.city && (
+              <p className="mt-1 inline-flex items-center gap-1 text-sm text-ink-muted">
+                <MapPin className="size-4" aria-hidden />
+                {profile.city}
+              </p>
+            )}
+            {email && <p className="mt-1 text-xs text-ink-faint">{email}</p>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button leftIcon={<Pencil className="size-4" />} onClick={() => navigate("/account/edit")}>
+              Редактировать профиль
+            </Button>
+            <Link
+              to={`/users/${profile.id}`}
+              className="inline-flex h-11 items-center rounded-control border border-line-strong bg-surface px-4 text-sm font-medium text-ink transition-colors duration-120 ease-metronome hover:bg-surface-alt"
+            >
+              Как видят другие
+            </Link>
+          </div>
+        </div>
+      </Card>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <div className="flex flex-col gap-6">
-          {!isComplete && (
+        <div className="flex flex-col gap-4">
+          {!isComplete ? (
             <Card className="border-warning/40 bg-warning/5">
               <h2 className="font-display text-sm font-semibold text-ink">Профиль заполнен не полностью</h2>
               <p className="mt-1 text-sm text-ink-muted">
-                Заполните, чтобы профиль стал завершённым:{" "}
-                {profile.missingFields.map((f) => FIELD_LABELS[f] ?? f).join(", ")}.
+                Расскажите о себе и добавьте виды спорта — так профиль будет живее.
               </p>
+              <div className="mt-3">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<Pencil className="size-4" />}
+                  onClick={() => navigate("/account/edit")}
+                >
+                  Заполнить
+                </Button>
+              </div>
             </Card>
-          )}
-          {isComplete && (
+          ) : (
             <div className="flex items-center gap-1.5 text-sm text-success">
               <CheckCircle2 className="size-4" aria-hidden />
               Профиль заполнен полностью
             </div>
           )}
 
-          <ProfileEditForm profile={profile} />
+          {profile.about && (
+            <Card>
+              <h2 className="mb-2 font-display text-sm font-semibold text-ink">О себе</h2>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-ink-muted">{profile.about}</p>
+            </Card>
+          )}
+
+          {profile.sportsTags.length > 0 && (
+            <Card>
+              <h2 className="mb-2 font-display text-sm font-semibold text-ink">Виды спорта</h2>
+              <div className="flex flex-wrap gap-1.5">
+                {profile.sportsTags.map((tag) => (
+                  <span key={tag} className="rounded-badge bg-surface-alt px-2.5 py-1 text-sm text-ink-muted">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </Card>
+          )}
+
         </div>
 
         <div className="flex flex-col gap-6">
